@@ -11,7 +11,7 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { skillPath } from '../lib/base';
 import { useCatalog } from '../lib/catalog';
@@ -75,6 +75,8 @@ const LARGE_CATALOG = 30;
 const TREE_INDENT = 24;
 const TREE_ROW = 36;
 const TREE_WIDTH = TREE_INDENT + 230;
+/** How long the hover focus is kept after the pointer leaves a node. */
+const FOCUS_RELEASE_MS = 260;
 const KIND_ORDER: ResourceKind[] = ['script', 'reference', 'asset', 'other'];
 
 /**
@@ -203,6 +205,19 @@ export function Architecture() {
   // Hovering a node keeps it and everything one line away from it in focus,
   // and dims the rest.
   const [hovered, setHovered] = useState<string | null>(null);
+  // The focus is let go a moment after the pointer leaves a node, so that
+  // crossing the gap to a neighbour (a few pixels when zoomed out) does not
+  // make the graph flash.
+  const release = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(release.current), []);
+  const focus = (id: string) => {
+    window.clearTimeout(release.current);
+    setHovered(id);
+  };
+  const unfocus = () => {
+    window.clearTimeout(release.current);
+    release.current = window.setTimeout(() => setHovered(null), FOCUS_RELEASE_MS);
+  };
   const { nodes, edges } = useMemo(() => {
     if (hovered === null || !laidOut.nodes.some((node) => node.id === hovered)) return laidOut;
     const near = new Set([hovered]);
@@ -289,8 +304,8 @@ export function Architecture() {
             const { skillId, path } = (node.data as FlowData).node;
             navigate(skillPath(skillId, path));
           }}
-          onNodeMouseEnter={(_event, node) => setHovered(node.id)}
-          onNodeMouseLeave={() => setHovered(null)}
+          onNodeMouseEnter={(_event, node) => focus(node.id)}
+          onNodeMouseLeave={unfocus}
           onEdgeClick={(_event, edge) => setSelected((edge.data as { edge: GraphEdge }).edge)}
           onPaneClick={() => setSelected(null)}
           proOptions={{ hideAttribution: false }}
