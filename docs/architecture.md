@@ -98,7 +98,7 @@ The viewer's look is defined once, as tokens at the top of
 | Palette | Forest and lime: a dark green ground with a pale lime accent. This dark theme is the default, whatever the system setting; the reader's own choice is remembered. The light theme is its inverse — a white sheet with forest ink, the ink doubling as the action colour. |
 | Type | Host Grotesk for text and headings (headings at weight 500, tight tracking), JetBrains Mono for code and paths. |
 | Shape | Sharp radii (2 / 4 / 6 / 8 px), 1px hairlines at 13% of the ink, flat grounds. |
-| Mark | A ring in the accent colour beside the name. |
+| Mark | A diamond above an open book, in the accent colour, beside the name: a skill rising from its page. The diamond stands for a skill; the favicon is the same drawing on the forest ground. |
 
 Rules the components follow: the interface stays neutral and the accent is rare
 (the mark, the current item, focus, explicit references in the graph); resource
