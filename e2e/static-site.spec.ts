@@ -198,6 +198,19 @@ test('architecture graph shows real structure, filters, and navigates', async ({
   await page.getByRole('heading', { level: 1, name: 'Architecture' }).hover();
   await expect(graph.locator('.dimmed')).toHaveCount(0);
 
+  // The help note can be put away as an icon, and stays that way.
+  await expect(graph.getByText('Every line is a fact')).toBeVisible();
+  await page.getByRole('button', { name: 'Hide graph help' }).click();
+  await expect(graph.getByText('Every line is a fact')).toBeHidden();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Show graph help' })).toBeVisible();
+  await expect(graph.getByText('Every line is a fact')).toBeHidden();
+  await page.getByRole('button', { name: 'Show graph help' }).click();
+  await expect(graph.getByText('Every line is a fact')).toBeVisible();
+
+  // Folder and group toggles show a hand, like everything else that can be pressed.
+  await expect(page.getByRole('navigation', { name: 'Skills' }).getByRole('button').first()).toHaveCSS('cursor', 'pointer');
+
   // Clicking a file node opens that file.
   await graph.locator('.react-flow__node', { hasText: 'FORMS.md' }).click();
   await expect(page).toHaveURL(url('skills/pdf-processing/?file=references%2FFORMS.md'));

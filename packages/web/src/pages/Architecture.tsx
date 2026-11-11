@@ -12,6 +12,7 @@ import {
   type ReactFlowInstance,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { Info, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { skillPath } from '../lib/base';
@@ -84,6 +85,7 @@ const LARGE_CATALOG = 30;
 const TREE_INDENT = 24;
 const TREE_ROW = 36;
 const TREE_WIDTH = TREE_INDENT + 230;
+const HELP_KEY = 'skillarium-graph-help';
 /** Above this many nodes only the ones on screen are rendered. */
 const VIRTUALIZE_ABOVE = 100;
 /** How long the hover focus is kept after the pointer leaves a node. */
@@ -207,6 +209,22 @@ export function Architecture() {
     () => new Set(large ? [] : KINDS.map((k) => k.kind)),
   );
   const [selected, setSelected] = useState<GraphEdge | null>(null);
+  // The help note can be put away as an icon; the choice is remembered.
+  const [helpHidden, setHelpHiddenState] = useState(() => {
+    try {
+      return localStorage.getItem(HELP_KEY) === 'hidden';
+    } catch {
+      return false;
+    }
+  });
+  const setHelpHidden = (hidden: boolean) => {
+    setHelpHiddenState(hidden);
+    try {
+      localStorage.setItem(HELP_KEY, hidden ? 'hidden' : 'shown');
+    } catch {
+      // storage unavailable: the choice lasts for this page only
+    }
+  };
 
   useEffect(() => {
     document.title = `Architecture · ${catalog.project.title}`;
@@ -361,25 +379,53 @@ export function Architecture() {
           <Background gap={24} size={1} color="var(--line)" />
           <Controls showInteractive={false} position="bottom-right" />
         </ReactFlow>
-        <div className="pointer-events-none absolute bottom-3 left-3 max-w-[min(560px,calc(100%-5rem))] rounded-md border border-line bg-bg px-3 py-2 text-[13px]" role="status">
-          {matching === 0 ? (
-            <span>
-              No skill or file name contains “{query.trim()}”.{' '}
-              <span className="text-muted">Press Escape in the filter to clear it.</span>
-            </span>
-          ) : selected ? (
-            <>
-              <span className="font-medium">{selected.kind}</span>
-              <span className="text-muted"> — {selected.evidence}</span>
-            </>
-          ) : (
-            <span className="text-muted">
-              Every line is a fact from the file system or an explicit reference. Click a line to see its evidence, a
-              node to open it.
-              {large && visible.size === 0 && ' Files are hidden in a catalog this size: turn a file type on to see them.'}
-            </span>
-          )}
-        </div>
+        {matching === 0 || selected || !helpHidden ? (
+          <div
+            className="absolute bottom-3 left-3 flex max-w-[min(560px,calc(100%-5rem))] items-start gap-2 rounded-md border border-line bg-bg py-2 pl-3 pr-2 text-[13px]"
+            role="status"
+          >
+            <div className="min-w-0 flex-1">
+              {matching === 0 ? (
+                <span>
+                  No skill or file name contains “{query.trim()}”.{' '}
+                  <span className="text-muted">Press Escape in the filter to clear it.</span>
+                </span>
+              ) : selected ? (
+                <>
+                  <span className="font-medium">{selected.kind}</span>
+                  <span className="text-muted"> — {selected.evidence}</span>
+                </>
+              ) : (
+                <span className="text-muted">
+                  Every line is a fact from the file system or an explicit reference. Click a line to see its
+                  evidence, a node to open it.
+                  {large && visible.size === 0 && ' Files are hidden in a catalog this size: turn a file type on to see them.'}
+                </span>
+              )}
+            </div>
+            {matching > 0 && (
+              <button
+                type="button"
+                aria-label={selected ? 'Close evidence' : 'Hide graph help'}
+                title={selected ? 'Close evidence' : 'Hide graph help'}
+                onClick={() => (selected ? setSelected(null) : setHelpHidden(true))}
+                className="-mt-0.5 shrink-0 rounded-md p-1 text-faint hover:bg-sunken hover:text-fg"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            aria-label="Show graph help"
+            title="Show graph help"
+            onClick={() => setHelpHidden(false)}
+            className="btn-step absolute bottom-3 left-3 rounded-md border border-line bg-bg p-1.5 text-muted hover:border-line-strong hover:text-fg"
+          >
+            <Info className="h-[18px] w-[18px]" aria-hidden="true" />
+          </button>
+        )}
       </div>
     </div>
   );
