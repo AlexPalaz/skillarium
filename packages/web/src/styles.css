@@ -10,7 +10,7 @@
  *                               (white ground, forest ink) is the light theme
  *   type     host               Host Grotesk + JetBrains Mono, display at 500
  *   radius   sharp              4 / 6 / 8
- *   buttons  solid              mark: ring
+ *   buttons  solid              mark: diamond above an open book
  *
  * Rules kept from that system: the interface stays neutral and the accent is
  * rare; hairlines are the ink at 13%; labels are sentence case at 13px/500,
@@ -180,16 +180,17 @@ mark {
   color: var(--muted);
 }
 
-/* The mark: a ring in the accent, beside the name set in the display face. */
+/* The mark: a diamond (a skill) above an open book, in the accent, beside the
+   name. The same three shapes are drawn in public/favicon.svg. */
 .brand-mark {
   display: inline-block;
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   background: var(--mark);
-  -webkit-mask: var(--ring) center / contain no-repeat;
-  mask: var(--ring) center / contain no-repeat;
-  --ring: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 5.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9z'/%3E%3C/svg%3E");
+  -webkit-mask: var(--shape) center / contain no-repeat;
+  mask: var(--shape) center / contain no-repeat;
+  --shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg stroke='%23000' stroke-width='1.2' stroke-linejoin='round'%3E%3Cpath d='M12 2L16.1 6.6L12 11.2L7.9 6.6Z'/%3E%3Cpath d='M2.6 11.4L11.1 15.2L11.1 21.2L2.6 17.4Z'/%3E%3Cpath d='M21.4 11.4L12.9 15.2L12.9 21.2L21.4 17.4Z'/%3E%3C/g%3E%3C/svg%3E");
 }
 
 .scroll-thin {

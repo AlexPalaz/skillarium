@@ -1,3 +1,5 @@
+<img src="packages/web/public/favicon.svg" width="72" height="72" alt="Skillarium logo: a diamond above an open book">
+
 # Skillarium
 
 **The open-source workspace for Agent Skills.** Explore, document, and share the skills in your repository.

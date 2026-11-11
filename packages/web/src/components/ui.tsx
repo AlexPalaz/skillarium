@@ -1,7 +1,7 @@
 import { Check, Copy } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
-/** The dealt mark: a ring in the accent colour. */
+/** The mark: a diamond above an open book, in the accent colour. */
 export function Logo({ className = '' }: { className?: string }) {
   return <span className={`brand-mark ${className}`} aria-hidden="true" />;
 }

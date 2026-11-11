@@ -32,6 +32,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- New logo: a diamond above an open book replaces the ring, in the viewer's
+  header, the favicon and the README.
 - Frontmatter that is invalid YAML only because a plain value contains `: `
   or ` #` is now read line by line and reported as a warning
   (`lenient-yaml`) instead of an error, as agent tools accept it.
