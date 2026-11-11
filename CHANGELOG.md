@@ -20,10 +20,18 @@ All notable changes to this project are documented here. The format follows
 - Architecture view: the help note can be put away as an icon; the choice is
   remembered.
 - Buttons, including folder and group toggles, show a pointer cursor.
-- `broken-link` warning: a relative Markdown link or image in a skill that
+- `broken-link` error: a relative Markdown link or image in a skill that
   leads to no file is reported on the skill, in the viewer and on the command
-  line. Links inside code, links with a scheme and links that leave the
-  project are not checked.
+  line, and fails `check` and `build --strict`. Links inside code, links with
+  a scheme and links that leave the project are not checked.
+- `missing-path` warning: a document names a file under `scripts/` or
+  `references/` that does not exist, without linking to it.
+- `orphan-file` warning: a document or a script of a skill that cannot be
+  reached from `SKILL.md`, so an agent will not find it.
+- `duplicate-name` error: skills that share a `name` but are not identical
+  copies of each other. Identical copies kept in several agent folders are
+  not reported.
+- `docs/diagnostics.md`: every diagnostic, its severity and how to fix it.
 - Sidebar: when a catalog has skills with errors or warnings, buttons show
   only those skills (All / Errors / Warnings); the choice also narrows search
   results.

@@ -205,28 +205,67 @@ describe('command line', () => {
     expect(missing.stderr).toContain('No skill named "nope"');
   });
 
-  it('prints a broken link as a warning and does not fail a --strict build for it', async () => {
+  it('reports a broken link as an error everywhere, and fails a --strict build for it', async () => {
     const root = await makeProject({
       skills: { pdf: { 'SKILL.md': skillMd('pdf', 'Does pdf. Use for pdf.', 'See [guide](references/guide.md).') } },
     });
 
     const listed = await cli(['list', '--root', root]);
-    expect(listed.code).toBe(0);
-    expect(listed.stdout).toContain('1 warning'); // `list` counts; `inspect` and `build` give the detail
+    expect(listed.code).toBe(0); // `list` only lists
+    expect(listed.stdout).toContain('1 error');
 
     const json = JSON.parse((await cli(['list', '--json', '--root', root])).stdout) as {
       diagnostics: { severity: string; code: string; file: string }[];
     }[];
-    expect(json[0]!.diagnostics).toMatchObject([{ severity: 'warning', code: 'broken-link', file: 'SKILL.md' }]);
+    expect(json[0]!.diagnostics).toMatchObject([{ severity: 'error', code: 'broken-link', file: 'SKILL.md' }]);
 
     const inspected = await cli(['inspect', 'pdf', '--root', root]);
     expect(inspected.stdout).toContain('SKILL.md links to `references/guide.md`, which does not exist.');
     expect(inspected.stdout).toContain('broken-link');
 
-    // A warning is something to fix, not a reason to stop a release.
+    const checked = await cli(['check', '--root', root]);
+    expect(checked.code).toBe(1);
+    expect(checked.stdout).toContain('which does not exist');
+
+    // A skill that sends its reader to a missing file is not fit to publish.
+    expect((await cli(['build', '--root', root, '--out-dir', path.join(root, 'out')])).code).toBe(0);
     const strict = await cli(['build', '--root', root, '--strict', '--out-dir', path.join(root, 'out')]);
-    expect(strict.code).toBe(0);
+    expect(strict.code).toBe(1);
     expect(strict.stderr).toContain('which does not exist');
+  });
+
+  it('prints the new warnings without failing: a named file that is missing, a file nothing refers to', async () => {
+    const root = await makeProject({
+      skills: {
+        pdf: {
+          'SKILL.md': skillMd('pdf', 'Does pdf. Use for pdf.', 'Run `python scripts/extract.py`.'),
+          assets: { 'template.json': '{}' },
+        },
+      },
+    });
+    const checked = await cli(['check', '--root', root]);
+    expect(checked.code).toBe(0);
+    expect(checked.stdout).toContain('SKILL.md names `scripts/extract.py`, which does not exist.');
+    expect(checked.stdout).toContain('missing-path');
+    expect(checked.stdout).toContain('`assets/template.json` is never referenced');
+    expect(checked.stdout).toContain('orphan-file');
+    expect(checked.stdout).toContain('2 warnings');
+    expect((await cli(['check', '--root', root, '--fail-on', 'warning'])).code).toBe(1);
+  });
+
+  it('fails the check for two different skills with one name, but not for identical copies', async () => {
+    const same = skillMd('pdf');
+    const copies = await makeProject({ skills: { pdf: { 'SKILL.md': same } }, '.claude': { skills: { pdf: { 'SKILL.md': same } } } });
+    expect((await cli(['check', '--root', copies, '--fail-on', 'warning'])).code).toBe(0);
+
+    const drifted = await makeProject({
+      skills: { pdf: { 'SKILL.md': same } },
+      '.claude': { skills: { pdf: { 'SKILL.md': skillMd('pdf', 'An older description. Use for pdf.') } } },
+    });
+    const checked = await cli(['check', '--root', drifted]);
+    expect(checked.code).toBe(1);
+    expect(checked.stdout).toContain('duplicate-name');
+    expect(checked.stdout).toContain('2 errors');
   });
 
   it('uses exit code 2 for usage errors and supports --strict builds', async () => {
@@ -249,7 +288,8 @@ describe('command line', () => {
       warnings: number;
       diagnostics: { severity: string; code: string; message: string; skill?: string; path: string; file?: string }[];
     }
-    const BROKEN_LINK = skillMd('pdf', 'Does pdf. Use for pdf.', 'See [guide](references/guide.md).');
+    // A warning: the name differs from the folder the skill is in.
+    const WARNED = skillMd('pdf-old');
     const report = async (args: string[]) => {
       const result = await cli(['check', '--json', ...args]);
       return { code: result.code, report: JSON.parse(result.stdout) as Report };
@@ -279,17 +319,17 @@ describe('command line', () => {
     });
 
     it('prints warnings but only fails for them with --fail-on warning', async () => {
-      const root = await makeProject({ skills: { pdf: { 'SKILL.md': BROKEN_LINK } } });
+      const root = await makeProject({ skills: { pdf: { 'SKILL.md': WARNED } } });
 
       const lenient = await cli(['check', '--root', root]);
       expect(lenient.code).toBe(0);
-      expect(lenient.stdout).toContain('which does not exist');
+      expect(lenient.stdout).toContain('does not match the directory name');
       expect(lenient.stdout).toContain('1 warning');
       expect((await cli(['check', '--root', root, '--fail-on', 'error'])).code).toBe(0);
 
       const strict = await cli(['check', '--root', root, '--fail-on', 'warning']);
       expect(strict.code).toBe(1);
-      expect(strict.stdout).toContain('which does not exist');
+      expect(strict.stdout).toContain('does not match the directory name');
     });
 
     it('treats an unknown --fail-on value as a usage error', async () => {
@@ -313,7 +353,7 @@ describe('command line', () => {
     it('reports counts and problems as JSON, project-level ones first', async () => {
       const root = await makeProject({
         'skillarium.config.json': JSON.stringify({ skills: ['./missing', './skills'] }),
-        skills: { bad: { 'SKILL.md': '# no frontmatter' }, pdf: { 'SKILL.md': BROKEN_LINK } },
+        skills: { bad: { 'SKILL.md': '# no frontmatter' }, pdf: { 'SKILL.md': WARNED } },
       });
       const { code, report: result } = await report(['--root', root]);
       expect(code).toBe(1);
@@ -334,9 +374,9 @@ describe('command line', () => {
           },
           {
             severity: 'warning',
-            code: 'broken-link',
-            message: 'SKILL.md links to `references/guide.md`, which does not exist.',
-            skill: 'pdf',
+            code: 'name-mismatch',
+            message: '`name` ("pdf-old") does not match the directory name ("pdf").',
+            skill: 'pdf-old',
             path: 'skills/pdf',
             file: 'SKILL.md',
           },
@@ -349,7 +389,7 @@ describe('command line', () => {
     });
 
     it('gives ok: true in JSON when only warnings are present, unless they are made to fail', async () => {
-      const root = await makeProject({ skills: { pdf: { 'SKILL.md': BROKEN_LINK } } });
+      const root = await makeProject({ skills: { pdf: { 'SKILL.md': WARNED } } });
       const lenient = await report(['--root', root]);
       expect([lenient.code, lenient.report.ok, lenient.report.warnings]).toEqual([0, true, 1]);
       const strict = await report(['--root', root, '--fail-on', 'warning']);

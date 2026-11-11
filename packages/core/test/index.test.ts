@@ -208,7 +208,7 @@ describe('resources', () => {
   it('excludes key and credential files', async () => {
     const root = await project({
       skills: {
-        pdf: { 'SKILL.md': skillMd('pdf'), 'server.pem': 'KEY', id_rsa: 'KEY', 'ok.txt': 'fine' },
+        pdf: { 'SKILL.md': skillMd('pdf', 'd', 'See ok.txt.'), 'server.pem': 'KEY', id_rsa: 'KEY', 'ok.txt': 'fine' },
       },
     });
     const { catalog, files } = await indexProject({ root });

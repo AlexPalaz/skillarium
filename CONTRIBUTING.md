@@ -75,6 +75,11 @@ pnpm test:e2e                            # Playwright: user journeys
 - **Follow the specification.** Do not make fields mandatory that the
   [Agent Skills specification](https://agentskills.io/specification) leaves
   optional, and do not require changes to existing skills.
+- **An error is a fact.** A diagnostic is an error only when the skill cannot
+  work as written: it breaks the specification, links to a file that does not
+  exist, or shares its name with a different skill. A check that guesses what
+  the author meant is a warning. Document every code in
+  [docs/diagnostics.md](docs/diagnostics.md).
 - **Relationships need evidence.** The architecture graph only shows
   filesystem facts and explicit references. Do not add inferred edges.
 - **Keep the catalog deterministic and portable:** no absolute paths, no

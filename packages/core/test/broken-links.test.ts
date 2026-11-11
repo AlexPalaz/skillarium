@@ -6,7 +6,8 @@ import { makeProject, skillMd, type Tree } from './helpers.js';
 
 // A skill that tells its reader to open a file that is not there fails in
 // use, and nothing else in the catalog shows it. `broken-link` reports that.
-// The check must stay precise — a warning nobody trusts is ignored — so most
+// It is an error, so the check must stay precise: a correct skill must never
+// be blocked. Most
 // of these tests are about what must NOT be reported.
 
 const created: string[] = [];
@@ -38,7 +39,7 @@ describe('broken-link', () => {
     const { catalog } = await indexProject({ root });
     expect(catalog.skills[0]!.diagnostics).toEqual([
       {
-        severity: 'warning',
+        severity: 'error',
         code: 'broken-link',
         message: 'SKILL.md links to `references/guide.md`, which does not exist.',
         file: 'SKILL.md',
@@ -87,6 +88,29 @@ describe('broken-link', () => {
       ),
     );
     expect(await broken(root)).toEqual([]);
+  });
+
+  it('does not judge a target that is not written like a file', async () => {
+    // Placeholders in prose: an error must be a fact, and these are not paths.
+    const root = await project(
+      pdf('Cite as [Source](URL). Say "I added it to [Team roster](its link)". But [real](notes.md) and [dir](docs/x) are paths.'),
+    );
+    expect(await broken(root)).toEqual(['SKILL.md: notes.md', 'SKILL.md: docs/x']);
+  });
+
+  it('resolves a link from any folder above the document, up to the skill', async () => {
+    // A skill made of self-contained parts writes paths from the part's folder.
+    const root = await project(
+      pdf('See [forms](references/forms/overview.md).', {
+        references: {
+          forms: {
+            'overview.md': '[fields](references/fields.md)',
+            references: { 'fields.md': 'Back to [overview](overview.md), or [gone](references/gone.md).' },
+          },
+        },
+      }),
+    );
+    expect(await broken(root)).toEqual(['references/forms/references/fields.md: references/gone.md']);
   });
 
   it('accepts a link to a folder', async () => {
@@ -168,7 +192,7 @@ describe('broken-link', () => {
     expect(await broken(root)).toEqual(['references/guide.md: ../gone.md', 'SKILL.md: gone.md', 'SKILL.md: also-gone.md']);
   });
 
-  it('is a warning: it never turns into an error, and other skills are unaffected', async () => {
+  it('is an error on the skill that has it, and other skills are unaffected', async () => {
     const root = await project({
       skills: {
         pdf: { 'SKILL.md': skillMd('pdf', 'd', '[x](gone.md)') },
@@ -177,7 +201,7 @@ describe('broken-link', () => {
     });
     const { catalog } = await indexProject({ root });
     const all = catalog.skills.flatMap((s) => s.diagnostics);
-    expect(all.map((d) => [d.severity, d.code])).toEqual([['warning', 'broken-link']]);
+    expect(all.map((d) => [d.severity, d.code])).toEqual([['error', 'broken-link']]);
     expect(catalog.skills.find((s) => s.name === 'review')!.diagnostics).toEqual([]);
     expect(catalog.diagnostics).toEqual([]);
   });

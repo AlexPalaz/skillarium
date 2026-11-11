@@ -18,6 +18,7 @@
   <a href="docs/configuration.md">Configuration</a> ·
   <a href="docs/deployment.md">Deployment</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
+  <a href="docs/diagnostics.md">Diagnostics</a> ·
   <a href="docs/security.md">Security</a>
 </p>
 
@@ -42,7 +43,7 @@ Skillarium reads those folders and gives you:
 - **A resource browser** — the file tree of each skill, with syntax-highlighted source, rendered Markdown references and image previews.
 - **Search** — instant, offline full-text search over names, descriptions, metadata, instructions and file names.
 - **An architecture view** — a graph of skills and their files. Every line is a fact: either the file is in the skill's folder, or a document explicitly links to or names it. Nothing is inferred.
-- **Diagnostics** — problems measured against the [Agent Skills specification](https://agentskills.io/specification) (missing `description`, invalid YAML, a `name` that does not match its folder, …). Broken skills are still shown, so you can fix them.
+- **Diagnostics** — what will not work, and what probably will not: frontmatter that breaks the [Agent Skills specification](https://agentskills.io/specification), links to files that do not exist, paths that are named but missing, files the agent can never reach, and copies of a skill that have drifted apart. Broken skills are still shown, so you can fix them. Every check is listed in [docs/diagnostics.md](docs/diagnostics.md).
 - **A static site** — the same viewer as plain files you can host anywhere.
 
 It is read-only: Skillarium never modifies your skills and never executes anything inside them.
@@ -91,7 +92,7 @@ npx skillarium check --fail-on warning   # warnings fail too
 npx skillarium check --json              # counts and problems, for scripts
 ```
 
-`check` reads the skills, prints every error and warning with the skill it belongs to, and sets the exit code. It writes no files and starts no server, so it is the command to run on every pull request; `build` is for publishing. A project in which no skill is found fails the check, because in CI that usually means a wrong `--root` or `skills` setting.
+`check` reads the skills, prints every error and warning with the skill it belongs to, and sets the exit code. An error is a fact — invalid frontmatter, a link to a file that is not there, two different skills with one name — and fails the check; a warning is a likely mistake, such as a script that is named but missing or a file nothing refers to (see [docs/diagnostics.md](docs/diagnostics.md)). It writes no files and starts no server, so it is the command to run on every pull request; `build` is for publishing. A project in which no skill is found fails the check, because in CI that usually means a wrong `--root` or `skills` setting.
 
 ### Commands
 
@@ -184,6 +185,7 @@ pnpm test:e2e                                 # end-to-end tests (Playwright)
 - [Architecture](docs/architecture.md) — packages, data model, design decisions
 - [Configuration](docs/configuration.md) — every option
 - [Deployment](docs/deployment.md) — publishing the static site
+- [Diagnostics](docs/diagnostics.md) — every check, its severity and how to fix it
 - [Security model](docs/security.md) — threat model and limitations
 
 ## Contributing
