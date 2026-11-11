@@ -52,7 +52,7 @@ function escapeRegExp(value: string): string {
 }
 
 /** True when `text` names `resourcePath` as a standalone path token. */
-function mentionsPath(text: string, resourcePath: string): boolean {
+export function mentionsPath(text: string, resourcePath: string): boolean {
   if (resourcePath.length < 3 || !/[./]/.test(resourcePath)) return false;
   if (!text.includes(resourcePath)) return false;
   const pattern = new RegExp(`(?<![\\w./#-])(?:\\./)?${escapeRegExp(resourcePath)}(?![\\w/-])`);
