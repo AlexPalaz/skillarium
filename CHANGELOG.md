@@ -8,6 +8,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `skillarium check`: a command for CI that reports errors and warnings and
+  sets the exit code without writing files or starting a server. It fails on
+  errors, on warnings too with `--fail-on warning`, and when no skill is
+  found; `--json` prints counts and problems for scripts.
 - Architecture view: hovering a node keeps it, everything one line away and
   the whole chain of skill links through it in focus, and dims the rest.
 - Architecture view: a filter box narrows the graph to the skills whose name

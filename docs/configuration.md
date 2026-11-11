@@ -57,7 +57,31 @@ Flags take precedence over the config file.
 | `--out-dir <dir>` | `build`, `preview` | `outDir`. |
 | `--base <path>` | `build`, `preview` | `base`. `preview` defaults to the base the site was built with. |
 | `--strict` | `build` | Exit with code 1 if any skill has an error diagnostic. |
-| `--json` | `list`, `inspect` | Machine-readable output. |
+| `--fail-on <severity>` | `check` | `error` (default): exit 1 when there is an error. `warning`: exit 1 for warnings too. Any other value is a usage error. |
+| `--json` | `list`, `inspect`, `check` | Machine-readable output. |
+
+### `check --json`
+
+```json
+{
+  "ok": false,
+  "skills": 2,
+  "errors": 1,
+  "warnings": 1,
+  "diagnostics": [
+    {
+      "severity": "error",
+      "code": "missing-frontmatter",
+      "message": "SKILL.md does not start with a YAML frontmatter block (--- … ---).",
+      "skill": "bad",
+      "path": "skills/bad",
+      "file": "SKILL.md"
+    }
+  ]
+}
+```
+
+`ok` is what the exit code reports: `true` for 0, `false` for 1. `diagnostics` lists errors and warnings only, project-level ones first, then skill by skill in catalog order. `skill` is the skill's id, `path` its directory relative to the project root and `file` the file inside it. A problem that belongs to the project rather than to one skill (a configured root that does not exist, a symlink that was skipped) has no `skill` and no `file`, and `path` is the place it was found. The output is the same on every run for the same project.
 
 ## Ignoring files
 
