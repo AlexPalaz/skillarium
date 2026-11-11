@@ -64,6 +64,11 @@ const nodeTypes = { item: GraphNodeView };
 const ROW = 40;
 const BLOCK_GAP = 36;
 const BLOCK_WIDTH = 640;
+const SKILL_ONLY_WIDTH = 250;
+const SKILL_ONLY_HEIGHT = 56;
+const SCREEN_RATIO = 1.6;
+/** Above this many skills the graph opens with files hidden. */
+const LARGE_CATALOG = 30;
 const KIND_ORDER: ResourceKind[] = ['script', 'reference', 'asset', 'other'];
 
 /**
@@ -79,12 +84,15 @@ function layout(graph: SkillGraph, visible: Set<ResourceKind>): { nodes: FlowNod
     const files = graph.nodes
       .filter((n) => n.skillId === skill.skillId && n.type !== 'skill' && visible.has(n.type as ResourceKind))
       .sort((a, b) => KIND_ORDER.indexOf(a.type as ResourceKind) - KIND_ORDER.indexOf(b.type as ResourceKind));
-    return { skill, files, height: Math.max(1, files.length) * ROW + BLOCK_GAP };
+    return { skill, files, height: files.length > 0 ? files.length * ROW + BLOCK_GAP : SKILL_ONLY_HEIGHT };
   });
 
-  // Larger catalogs wrap into several columns of roughly equal height.
-  const columnCount = skills.length > 24 ? 3 : skills.length > 8 ? 2 : 1;
-  const target = blocks.reduce((sum, b) => sum + b.height, 0) / columnCount;
+  // Blocks wrap into as many columns as it takes for the whole graph to have
+  // roughly the proportions of a screen, so that fitting it keeps it legible.
+  const blockWidth = blocks.some((b) => b.files.length > 0) ? BLOCK_WIDTH : SKILL_ONLY_WIDTH;
+  const total = blocks.reduce((sum, b) => sum + b.height, 0);
+  const columnCount = Math.max(1, Math.round(Math.sqrt((SCREEN_RATIO * total) / blockWidth)));
+  const target = total / columnCount;
 
   const nodes: FlowNode[] = [];
   const shown = new Set<string>();
@@ -95,7 +103,7 @@ function layout(graph: SkillGraph, visible: Set<ResourceKind>): { nodes: FlowNod
       column++;
       y = 0;
     }
-    const x = column * BLOCK_WIDTH;
+    const x = column * blockWidth;
     shown.add(block.skill.id);
     nodes.push({ id: block.skill.id, type: 'item', position: { x, y }, data: { node: block.skill } });
     block.files.forEach((node, row) => {
@@ -134,14 +142,35 @@ export function Architecture() {
   const { catalog } = useCatalog();
   const navigate = useNavigate();
   const theme = useTheme();
-  const [visible, setVisible] = useState<Set<ResourceKind>>(new Set(KINDS.map((k) => k.kind)));
+  const large = catalog.skills.length > LARGE_CATALOG;
+  const [visible, setVisible] = useState<Set<ResourceKind>>(
+    () => new Set(large ? [] : KINDS.map((k) => k.kind)),
+  );
   const [selected, setSelected] = useState<GraphEdge | null>(null);
 
   useEffect(() => {
     document.title = `Architecture · ${catalog.project.title}`;
   }, [catalog.project.title]);
 
-  const { nodes, edges } = useMemo(() => layout(catalog.graph, visible), [catalog.graph, visible]);
+  const laidOut = useMemo(() => layout(catalog.graph, visible), [catalog.graph, visible]);
+
+  // Hovering a node keeps it and everything one line away from it in focus,
+  // and dims the rest.
+  const [hovered, setHovered] = useState<string | null>(null);
+  const { nodes, edges } = useMemo(() => {
+    if (hovered === null || !laidOut.nodes.some((node) => node.id === hovered)) return laidOut;
+    const near = new Set([hovered]);
+    for (const edge of laidOut.edges) {
+      if (edge.source === hovered) near.add(edge.target);
+      if (edge.target === hovered) near.add(edge.source);
+    }
+    return {
+      nodes: laidOut.nodes.map((node) => (near.has(node.id) ? node : { ...node, className: 'dimmed' })),
+      edges: laidOut.edges.map((edge) =>
+        edge.source === hovered || edge.target === hovered ? edge : { ...edge, className: 'dimmed' },
+      ),
+    };
+  }, [laidOut, hovered]);
   const explicit = catalog.graph.edges.filter((e) => e.kind !== 'contains').length;
 
   if (catalog.skills.length === 0) {
@@ -214,6 +243,8 @@ export function Architecture() {
             const { skillId, path } = (node.data as FlowData).node;
             navigate(skillPath(skillId, path));
           }}
+          onNodeMouseEnter={(_event, node) => setHovered(node.id)}
+          onNodeMouseLeave={() => setHovered(null)}
           onEdgeClick={(_event, edge) => setSelected((edge.data as { edge: GraphEdge }).edge)}
           onPaneClick={() => setSelected(null)}
           proOptions={{ hideAttribution: false }}
@@ -231,6 +262,7 @@ export function Architecture() {
             <span className="text-muted">
               Every line is a fact from the file system or an explicit reference. Click a line to see its evidence, a
               node to open it.
+              {large && visible.size === 0 && ' Files are hidden in a catalog this size: turn a file type on to see them.'}
             </span>
           )}
         </div>

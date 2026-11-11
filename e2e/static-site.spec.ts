@@ -185,6 +185,18 @@ test('architecture graph shows real structure, filters, and navigates', async ({
   await page.getByRole('button', { name: /fit view/i }).click();
   await expect(graph.locator('.react-flow__node', { hasText: 'pdf-processing' })).toBeInViewport();
 
+  // Hovering a node dims everything that is not one line away from it.
+  const node = (text: string) => graph.locator('.react-flow__node', { hasText: text });
+  await node('code-review').hover();
+  await expect(node('code-review')).not.toHaveClass(/dimmed/);
+  await expect(node('checklist.md')).not.toHaveClass(/dimmed/); // its own file
+  await expect(node('database-migration')).not.toHaveClass(/dimmed/); // links to it
+  await expect(node('incident-triage')).toHaveClass(/dimmed/);
+  await expect(node('fill_form.py')).toHaveClass(/dimmed/);
+  await expect(graph.locator('.react-flow__edge.dimmed').first()).toBeAttached();
+  await page.getByRole('heading', { level: 1, name: 'Architecture' }).hover();
+  await expect(graph.locator('.dimmed')).toHaveCount(0);
+
   // Clicking a file node opens that file.
   await graph.locator('.react-flow__node', { hasText: 'FORMS.md' }).click();
   await expect(page).toHaveURL(url('skills/pdf-processing/?file=references%2FFORMS.md'));

@@ -497,6 +497,15 @@ mark {
 .react-flow__attribution a {
   color: var(--faint);
 }
+/* While a node is hovered, whatever is not one line away from it steps back. */
+.react-flow__node,
+.react-flow__edge {
+  transition: opacity var(--m-out) var(--ease);
+}
+.react-flow__node.dimmed,
+.react-flow__edge.dimmed {
+  opacity: 0.18;
+}
 .react-flow__handle {
   opacity: 0;
   pointer-events: none;

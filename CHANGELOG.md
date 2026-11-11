@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Architecture view: hovering a node keeps it and everything one line away in
+  focus and dims the rest.
+- `scripts/make-playground.mjs` (`pnpm playground`): generates a large,
+  deterministic project for trying Skillarium at scale.
+
+### Changed
+
+- Frontmatter that is invalid YAML only because a plain value contains `: `
+  or ` #` is now read line by line and reported as a warning
+  (`lenient-yaml`) instead of an error, as agent tools accept it.
+- YAML error messages give the line number in `SKILL.md`, not inside the
+  frontmatter block.
+- Architecture view: the layout widens with the size of the catalog, and
+  above 30 skills it opens with files hidden.
+
 ## [0.1.0] - 2026-11-11
 
 Initial version. Not yet published to npm.

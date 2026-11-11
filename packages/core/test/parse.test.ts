@@ -31,6 +31,35 @@ describe('parseSkillFile', () => {
     expect(result.body).toBe('Body\n');
   });
 
+  it('reads a plain value containing ": " leniently, with a warning', () => {
+    // Not valid YAML, but written like this in real skills and accepted by agent tools.
+    const result = parseSkillFile(
+      '---\nname: deploy\ndescription: Use before a release. Note: run the checks first # always\nlicense: MIT\n---\nBody\n',
+    );
+    expect(result.frontmatter).toEqual({
+      name: 'deploy',
+      description: 'Use before a release. Note: run the checks first # always',
+      license: 'MIT',
+    });
+    expect(result.diagnostics).toHaveLength(1);
+    expect(result.diagnostics[0]).toMatchObject({ severity: 'warning', code: 'lenient-yaml' });
+    expect(result.diagnostics[0]?.message).toContain('line 3'); // counted from the top of SKILL.md
+    expect(result.body).toBe('Body\n');
+  });
+
+  it('does not guess when broken YAML uses more than plain key: value lines', () => {
+    for (const block of [
+      'name: x\ndescription: a: b\nmetadata:\n  author: me', // nesting
+      'name: x\ndescription: "unclosed: quote', // quoting
+      'name: x\ndescription: a: b\n- stray', // not a mapping line
+      'name: x\ndescription: a: b\ntags: [a, b', // flow syntax
+    ]) {
+      const result = parseSkillFile(`---\n${block}\n---\n`);
+      expect(result.diagnostics.map((d) => d.code), block).toEqual(['invalid-yaml']);
+      expect(result.frontmatter, block).toEqual({});
+    }
+  });
+
   it('rejects frontmatter that is not a mapping', () => {
     const result = parseSkillFile('---\n- a\n- b\n---\n');
     expect(result.diagnostics[0]?.code).toBe('invalid-frontmatter');

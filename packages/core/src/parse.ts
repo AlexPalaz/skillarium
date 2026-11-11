@@ -27,6 +27,28 @@ function toJsonSafe(value: unknown): unknown {
   }
 }
 
+const TOP_LEVEL_KEY = /^([A-Za-z_][\w-]*):(?:[ \t]+(.*))?$/;
+
+/**
+ * Fallback for frontmatter that is not valid YAML only because a plain value
+ * contains `: ` or ` #` — common in hand-written descriptions, and accepted by
+ * agent tools. Reads top-level `key: value` lines as plain strings and
+ * returns null when the block uses anything else (quotes, lists, flow or block
+ * syntax, nesting), so genuinely broken YAML is still reported as an error.
+ */
+function readLeniently(block: string): Record<string, unknown> | null {
+  const out: Record<string, unknown> = {};
+  for (const line of block.split(/\r?\n/)) {
+    if (line.trim() === '' || /^\s*#/.test(line)) continue;
+    const entry = TOP_LEVEL_KEY.exec(line);
+    if (!entry) return null;
+    const value = (entry[2] ?? '').trim();
+    if (value === '' || /^[\[{"'|>&*!%@`#]/.test(value)) return null;
+    out[entry[1]!] = value;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
 /**
  * Split a SKILL.md into frontmatter and body. Never throws: every problem is
  * reported as a diagnostic so a malformed skill can still be displayed.
@@ -65,13 +87,27 @@ export function parseSkillFile(raw: string): ParsedSkillFile {
       });
     }
   } catch (error) {
-    const reason = error instanceof Error ? error.message.split('\n')[0] : String(error);
-    diagnostics.push({
-      severity: 'error',
-      code: 'invalid-yaml',
-      message: `Frontmatter is not valid YAML: ${reason}`,
-      file: 'SKILL.md',
-    });
+    // The YAML library counts lines inside the block; the file has one more above it.
+    const reason = (error instanceof Error ? (error.message.split('\n')[0] ?? '') : String(error))
+      .replace(/\bline (\d+)/, (_match, line: string) => `line ${Number(line) + 1}`)
+      .replace(/[:\s]+$/, '');
+    const lenient = readLeniently(match[1] ?? '');
+    if (lenient) {
+      frontmatter = lenient;
+      diagnostics.push({
+        severity: 'warning',
+        code: 'lenient-yaml',
+        message: `Frontmatter is not strict YAML (${reason}). It was read line by line instead; quote values that contain ": " or " #".`,
+        file: 'SKILL.md',
+      });
+    } else {
+      diagnostics.push({
+        severity: 'error',
+        code: 'invalid-yaml',
+        message: `Frontmatter is not valid YAML: ${reason}`,
+        file: 'SKILL.md',
+      });
+    }
   }
 
   return { frontmatter, body, diagnostics };
