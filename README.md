@@ -1,8 +1,5 @@
 <h1 align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/skillarium-wordmark-dark.svg">
-    <img src="docs/assets/skillarium-wordmark-light.svg" alt="Skillarium" width="420">
-  </picture>
+  <img src="docs/assets/skillarium-wordmark.svg" alt="Skillarium" width="460">
 </h1>
 
 <p align="center">

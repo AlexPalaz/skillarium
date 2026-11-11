@@ -37,34 +37,29 @@ describe('logo', () => {
 
   describe('README wordmark', () => {
     const readme = read('../../../README.md');
-    const sources = [
-      /<source media="\(prefers-color-scheme: dark\)" srcset="([^"]+)">/.exec(readme)?.[1],
-      /<img src="([^"]+)" alt="Skillarium"/.exec(readme)?.[1],
-    ];
-    const wordmark = (source: string | undefined) => read(`../../../${source}`);
+    const source = /<img src="([^"]+)" alt="Skillarium"/.exec(readme)?.[1];
+    const wordmark = () => read(`../../../${source}`);
 
-    it('heads the README with a light and a dark file that exist', () => {
+    it('heads the README with one file that exists, whatever the theme', () => {
       expect(readme.startsWith('<h1 align="center">')).toBe(true);
-      for (const source of sources) {
-        expect(source).toBeDefined();
-        expect(fs.existsSync(fileURLToPath(new URL(`../../../${source}`, import.meta.url)))).toBe(true);
-      }
-      expect(sources[0]).not.toBe(sources[1]);
+      expect(source).toBeDefined();
+      expect(fs.existsSync(fileURLToPath(new URL(`../../../${source}`, import.meta.url)))).toBe(true);
+      expect(readme).not.toContain('prefers-color-scheme');
+    });
+
+    it('sits on a white ground of its own, so it reads on a dark page too', () => {
+      expect(wordmark()).toMatch(/<rect [^>]*fill="#ffffff"/);
     });
 
     it('draws the same mark as the viewer, followed by the name', () => {
-      for (const source of sources) {
-        const drawn = shapes(wordmark(source));
-        expect(drawn.slice(0, 3)).toEqual(shapes(mark));
-        expect(drawn.length).toBe(3 + 'Skillarium'.length); // one outline per letter
-      }
+      const drawn = shapes(wordmark());
+      expect(drawn.slice(0, 3)).toEqual(shapes(mark));
+      expect(drawn.length).toBe(3 + 'Skillarium'.length); // one outline per letter
     });
 
     it('holds the name as outlines, so it looks the same without the font installed', () => {
-      for (const source of sources) {
-        expect(wordmark(source)).not.toMatch(/<text|font-family|@font-face|<script|href=|url\(/i);
-        expect(wordmark(source)).toContain('<title>Skillarium</title>');
-      }
+      expect(wordmark()).not.toMatch(/<text|font-family|@font-face|<script|href=|url\(/i);
+      expect(wordmark()).toContain('<title>Skillarium</title>');
     });
   });
 });
