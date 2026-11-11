@@ -139,6 +139,13 @@ h4 {
   text-wrap: balance;
 }
 
+/* Anything that can be pressed says so with the pointer. */
+button:not(:disabled),
+[role='button'],
+summary {
+  cursor: pointer;
+}
+
 code,
 kbd,
 pre,

@@ -10,6 +10,12 @@ All notable changes to this project are documented here. The format follows
 
 - Architecture view: hovering a node keeps it, everything one line away and
   the whole chain of skill links through it in focus, and dims the rest.
+- Architecture view: a filter box narrows the graph to the skills whose name
+  or file paths contain the typed words; the view follows the result.
+- Architecture view: above 100 nodes only the nodes on screen are rendered.
+- Architecture view: the help note can be put away as an icon; the choice is
+  remembered.
+- Buttons, including folder and group toggles, show a pointer cursor.
 - `scripts/make-playground.mjs` (`pnpm playground`): generates a large,
   deterministic project for trying Skillarium at scale.
 

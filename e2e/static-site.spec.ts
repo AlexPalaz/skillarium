@@ -139,8 +139,9 @@ test('a link into another skill navigates to that skill', async ({ page }) => {
 
 test('search finds skills by content and file name, with the keyboard', async ({ page }) => {
   await page.goto(url());
-  await page.keyboard.press('/');
   const search = page.getByRole('searchbox', { name: 'Search skills' });
+  await expect(search).toBeVisible(); // the shortcut exists once the catalog has loaded
+  await page.keyboard.press('/');
   await expect(search).toBeFocused();
 
   await search.fill('concurrently');
@@ -197,6 +198,19 @@ test('architecture graph shows real structure, filters, and navigates', async ({
   await page.getByRole('heading', { level: 1, name: 'Architecture' }).hover();
   await expect(graph.locator('.dimmed')).toHaveCount(0);
 
+  // The help note can be put away as an icon, and stays that way.
+  await expect(graph.getByText('Every line is a fact')).toBeVisible();
+  await page.getByRole('button', { name: 'Hide graph help' }).click();
+  await expect(graph.getByText('Every line is a fact')).toBeHidden();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Show graph help' })).toBeVisible();
+  await expect(graph.getByText('Every line is a fact')).toBeHidden();
+  await page.getByRole('button', { name: 'Show graph help' }).click();
+  await expect(graph.getByText('Every line is a fact')).toBeVisible();
+
+  // Folder and group toggles show a hand, like everything else that can be pressed.
+  await expect(page.getByRole('navigation', { name: 'Skills' }).getByRole('button').first()).toHaveCSS('cursor', 'pointer');
+
   // Clicking a file node opens that file.
   await graph.locator('.react-flow__node', { hasText: 'FORMS.md' }).click();
   await expect(page).toHaveURL(url('skills/pdf-processing/?file=references%2FFORMS.md'));
@@ -204,6 +218,37 @@ test('architecture graph shows real structure, filters, and navigates', async ({
   await page.goto(url('architecture/'));
   await page.getByTestId('graph').locator('.react-flow__node', { hasText: 'code-review' }).click();
   await expect(page).toHaveURL(url('skills/code-review/'));
+});
+
+test('the architecture graph can be filtered by skill or file name', async ({ page }) => {
+  await page.goto(url('architecture/'));
+  const graph = page.getByTestId('graph');
+  const nodes = graph.locator('.react-flow__node');
+  const filter = page.getByRole('searchbox', { name: 'Filter the graph' });
+  const shown = page.getByRole('status', { name: 'Skills shown' });
+  await expect(nodes).toHaveCount(17);
+  await expect(shown).toHaveText('5 skills');
+
+  // By skill name: the skill stays whole, the others go.
+  await filter.fill('pdf');
+  await expect(nodes).toHaveCount(6); // pdf-processing and its 5 files
+  await expect(shown).toHaveText('1 of 5 skills');
+  await expect(nodes.filter({ hasText: 'code-review' })).toHaveCount(0);
+  await expect(nodes.filter({ hasText: 'pdf-processing' })).toBeInViewport(); // the view follows
+
+  // By file name: every skill that has such a file.
+  await filter.fill('.sh');
+  await expect(shown).toHaveText('2 of 5 skills');
+  await expect(nodes.filter({ hasText: 'release-notes' })).toBeVisible(); // collect_commits.sh
+  await expect(nodes.filter({ hasText: 'database-migration' })).toBeVisible(); // check_migration.sh
+
+  // Nothing matches: say so, and Escape brings everything back.
+  await filter.fill('kubernetes');
+  await expect(nodes).toHaveCount(0);
+  await expect(graph.getByText('No skill or file name contains “kubernetes”.')).toBeVisible();
+  await filter.press('Escape');
+  await expect(filter).toHaveValue('');
+  await expect(nodes).toHaveCount(17);
 });
 
 test('the dark theme is the default; the toggle switches and is remembered', async ({ page }) => {
