@@ -119,6 +119,7 @@ location /skills-docs/ {
 
 ## Build in CI
 
-- `--strict` makes the build fail when a skill has an error (missing `description`, invalid frontmatter, …).
+- `skillarium check` validates the skills without building anything: it exits 1 when a skill has an error (missing `description`, invalid frontmatter, …), or also for warnings with `--fail-on warning`. Run it on pull requests.
+- `--strict` makes the build itself fail when a skill has an error, for the job that publishes the site.
 - `skillarium list --json` gives a machine-readable inventory with diagnostics.
 - Output is deterministic: the same skills produce byte-identical files, so a build can be diffed or cached.

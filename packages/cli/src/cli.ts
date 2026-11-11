@@ -14,7 +14,7 @@ interface GlobalOptions {
   config?: string;
 }
 
-const COMMANDS = ['dev', 'build', 'preview', 'list', 'inspect'];
+const COMMANDS = ['dev', 'build', 'preview', 'list', 'inspect', 'check'];
 
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
@@ -280,6 +280,69 @@ cli
     }
   });
 
+/** One error or warning of `check`, with the place it belongs to. */
+interface CheckDiagnostic {
+  severity: 'error' | 'warning';
+  code: string;
+  message: string;
+  /** Id of the skill; absent for a problem of the project itself. */
+  skill?: string;
+  /** Skill directory, or the place a project-level problem was found. */
+  path: string;
+  /** File inside the skill. */
+  file?: string;
+}
+
+/** Errors and warnings of a catalog: project-level ones first, then skill by skill. */
+function checkDiagnostics(catalog: Catalog): CheckDiagnostic[] {
+  const out: CheckDiagnostic[] = [];
+  for (const d of catalog.diagnostics) {
+    if (d.severity === 'info') continue;
+    out.push({ severity: d.severity, code: d.code, message: d.message, path: d.file ?? '.' });
+  }
+  for (const skill of catalog.skills) {
+    for (const d of skill.diagnostics) {
+      if (d.severity === 'info') continue;
+      const row: CheckDiagnostic = { severity: d.severity, code: d.code, message: d.message, skill: skill.id, path: skill.sourcePath };
+      if (d.file) row.file = d.file;
+      out.push(row);
+    }
+  }
+  return out;
+}
+
+cli
+  .command('check', 'Report problems and set the exit code, without writing anything (for CI)')
+  .option('--fail-on <severity>', 'Lowest severity that fails the check: error or warning (default: error)')
+  .option('--json', 'Print machine-readable JSON')
+  .example('skillarium check --fail-on warning')
+  .action(async (options: GlobalOptions & { failOn?: unknown; json?: boolean }) => {
+    const failOn = options.failOn ?? 'error';
+    if (failOn !== 'error' && failOn !== 'warning') {
+      throw new UsageError(`Invalid --fail-on "${String(failOn)}": expected "error" or "warning".`);
+    }
+    const project = await openProject(options);
+    const { catalog } = await indexWith(project, 'static');
+    const diagnostics = checkDiagnostics(catalog);
+    const errors = diagnostics.filter((d) => d.severity === 'error').length;
+    const warnings = diagnostics.length - errors;
+    const ok = catalog.skills.length > 0 && errors === 0 && (failOn === 'error' || warnings === 0);
+    if (!ok) process.exitCode = 1;
+
+    if (options.json) {
+      console.log(JSON.stringify({ ok, skills: catalog.skills.length, errors, warnings, diagnostics }, null, 2));
+      return;
+    }
+    for (const d of diagnostics) {
+      const tag = d.severity === 'error' ? pc.red('error') : pc.yellow('warn ');
+      console.log(`${tag} ${pc.dim(d.path)} ${d.message} ${pc.dim(d.code)}`);
+    }
+    if (diagnostics.length > 0) console.log();
+    if (catalog.skills.length === 0) noSkillsHint(catalog);
+    console.log(`${ok ? pc.green('✓') : pc.red('✗')} ${summary(catalog)}`);
+    if (!ok && errors === 0 && warnings > 0) console.log(pc.dim('  Warnings fail this check because of --fail-on warning.'));
+  });
+
 cli.help();
 cli.version(VERSION);
 
@@ -287,7 +350,7 @@ async function main(): Promise<void> {
   // `skillarium` with no command is `skillarium dev`.
   const argv = process.argv.slice();
   const args = argv.slice(2);
-  const takesValue = new Set(['--root', '--config', '--port', '--host', '--out-dir', '--base']);
+  const takesValue = new Set(['--root', '--config', '--port', '--host', '--out-dir', '--base', '--fail-on']);
   const first = args.find((arg, i) => !arg.startsWith('-') && !takesValue.has(args[i - 1] ?? ''));
   const wantsInfo = args.some((arg) => ['-h', '--help', '-v', '--version'].includes(arg));
   if (first === undefined) {

@@ -64,10 +64,21 @@ npx skillarium list --json               # for scripts and CI
 npx skillarium inspect pdf-processing    # one skill: metadata, files, references, diagnostics
 ```
 
+### Check in CI
+
+```bash
+npx skillarium check                     # exit 1 if a skill has an error
+npx skillarium check --fail-on warning   # warnings fail too
+npx skillarium check --json              # counts and problems, for scripts
+```
+
+`check` reads the skills, prints every error and warning with the skill it belongs to, and sets the exit code. It writes no files and starts no server, so it is the command to run on every pull request; `build` is for publishing. A project in which no skill is found fails the check, because in CI that usually means a wrong `--root` or `skills` setting.
+
 ### Commands
 
 | Command | What it does |
 | --- | --- |
+| `skillarium check` | Report problems and set the exit code, without writing anything. Options: `--fail-on <error\|warning>` (default `error`), `--json`. |
 | `skillarium dev` | Start the local viewer and watch skills for changes. Options: `--port`, `--host`, `--no-open`. |
 | `skillarium build` | Generate the static site. Options: `--out-dir`, `--base`, `--strict` (exit 1 if a skill has errors). |
 | `skillarium preview` | Serve the generated site locally. Options: `--out-dir`, `--port`, `--open`. |
@@ -76,7 +87,7 @@ npx skillarium inspect pdf-processing    # one skill: metadata, files, reference
 
 Every command accepts `--root <dir>` (project to scan, default: current directory) and `--config <file>`.
 
-Exit codes: `0` success, `1` failure, `2` usage error (unknown command, bad option, unknown skill).
+Exit codes: `0` success, `1` failure (including a failed `check`), `2` usage error (unknown command, bad option, unknown skill).
 
 ## Where skills are found
 

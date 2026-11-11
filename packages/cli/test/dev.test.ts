@@ -8,7 +8,7 @@ import type { Catalog } from '@skillarium/core';
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openProject } from '../src/project.js';
 import { startDevServer, type DevServer } from '../src/server.js';
-import { cleanup, get, makeProject, SAMPLE, skillMd } from './helpers.js';
+import { cleanup, get, listFiles, makeProject, SAMPLE, skillMd } from './helpers.js';
 
 afterAll(cleanup);
 
@@ -239,5 +239,129 @@ describe('command line', () => {
     const strict = await cli(['build', '--root', root, '--strict']);
     expect(strict.code).toBe(1);
     expect(strict.stderr).toContain('--strict');
+  });
+
+  describe('check', () => {
+    interface Report {
+      ok: boolean;
+      skills: number;
+      errors: number;
+      warnings: number;
+      diagnostics: { severity: string; code: string; message: string; skill?: string; path: string; file?: string }[];
+    }
+    const BROKEN_LINK = skillMd('pdf', 'Does pdf. Use for pdf.', 'See [guide](references/guide.md).');
+    const report = async (args: string[]) => {
+      const result = await cli(['check', '--json', ...args]);
+      return { code: result.code, report: JSON.parse(result.stdout) as Report };
+    };
+
+    it('passes a project without problems and writes nothing', async () => {
+      const root = await makeProject({ skills: { pdf: { 'SKILL.md': skillMd('pdf') }, review: { 'SKILL.md': skillMd('review') } } });
+      const before = await listFiles(root);
+      const { code, stdout } = await cli(['check', '--root', root]);
+      expect(code).toBe(0);
+      expect(stdout).toContain('2 skills');
+      expect(await listFiles(root)).toEqual(before);
+    });
+
+    it('fails with exit code 1 on an error, naming the skill, the problem and its code', async () => {
+      const root = await makeProject({
+        skills: { bad: { 'SKILL.md': '# no frontmatter' }, review: { 'SKILL.md': skillMd('review') } },
+      });
+      const before = await listFiles(root);
+      const { code, stdout } = await cli(['check', '--root', root]);
+      expect(code).toBe(1);
+      expect(stdout).toContain('skills/bad');
+      expect(stdout).toContain('does not start with a YAML frontmatter block');
+      expect(stdout).toContain('missing-frontmatter');
+      expect(stdout).toContain('1 error');
+      expect(await listFiles(root)).toEqual(before);
+    });
+
+    it('prints warnings but only fails for them with --fail-on warning', async () => {
+      const root = await makeProject({ skills: { pdf: { 'SKILL.md': BROKEN_LINK } } });
+
+      const lenient = await cli(['check', '--root', root]);
+      expect(lenient.code).toBe(0);
+      expect(lenient.stdout).toContain('which does not exist');
+      expect(lenient.stdout).toContain('1 warning');
+      expect((await cli(['check', '--root', root, '--fail-on', 'error'])).code).toBe(0);
+
+      const strict = await cli(['check', '--root', root, '--fail-on', 'warning']);
+      expect(strict.code).toBe(1);
+      expect(strict.stdout).toContain('which does not exist');
+    });
+
+    it('treats an unknown --fail-on value as a usage error', async () => {
+      const root = await makeProject({ skills: { pdf: { 'SKILL.md': skillMd('pdf') } } });
+      const result = await cli(['check', '--root', root, '--fail-on', 'info']);
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain('--fail-on');
+    });
+
+    it('fails when no skill is found', async () => {
+      const root = await makeProject({ 'README.md': '# nothing here' });
+      const result = await cli(['check', '--root', root]);
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain('No Agent Skills found');
+
+      const json = await report(['--root', root]);
+      expect(json.code).toBe(1);
+      expect(json.report).toEqual({ ok: false, skills: 0, errors: 0, warnings: 0, diagnostics: [] });
+    });
+
+    it('reports counts and problems as JSON, project-level ones first', async () => {
+      const root = await makeProject({
+        'skillarium.config.json': JSON.stringify({ skills: ['./missing', './skills'] }),
+        skills: { bad: { 'SKILL.md': '# no frontmatter' }, pdf: { 'SKILL.md': BROKEN_LINK } },
+      });
+      const { code, report: result } = await report(['--root', root]);
+      expect(code).toBe(1);
+      expect(result).toEqual({
+        ok: false,
+        skills: 2,
+        errors: 1,
+        warnings: 2,
+        diagnostics: [
+          { severity: 'warning', code: 'root-not-found', message: 'Configured skill root does not exist.', path: 'missing' },
+          {
+            severity: 'error',
+            code: 'missing-frontmatter',
+            message: 'SKILL.md does not start with a YAML frontmatter block (--- … ---).',
+            skill: 'bad',
+            path: 'skills/bad',
+            file: 'SKILL.md',
+          },
+          {
+            severity: 'warning',
+            code: 'broken-link',
+            message: 'SKILL.md links to `references/guide.md`, which does not exist.',
+            skill: 'pdf',
+            path: 'skills/pdf',
+            file: 'SKILL.md',
+          },
+        ],
+      });
+      // The same project gives the same output, and it holds no local path.
+      const again = await cli(['check', '--json', '--root', root]);
+      expect(again.stdout).toBe((await cli(['check', '--json', '--root', root])).stdout);
+      expect(again.stdout).not.toContain(root);
+    });
+
+    it('gives ok: true in JSON when only warnings are present, unless they are made to fail', async () => {
+      const root = await makeProject({ skills: { pdf: { 'SKILL.md': BROKEN_LINK } } });
+      const lenient = await report(['--root', root]);
+      expect([lenient.code, lenient.report.ok, lenient.report.warnings]).toEqual([0, true, 1]);
+      const strict = await report(['--root', root, '--fail-on', 'warning']);
+      expect([strict.code, strict.report.ok, strict.report.warnings]).toEqual([1, false, 1]);
+    });
+
+    it('neither prints nor counts informational notes', async () => {
+      const root = await makeProject({ skills: { pdf: { 'SKILL.md': skillMd('pdf'), id_rsa: 'not a real key' } } });
+      const { code, report: result } = await report(['--root', root]);
+      expect(code).toBe(0);
+      expect(result).toEqual({ ok: true, skills: 1, errors: 0, warnings: 0, diagnostics: [] });
+      expect((await cli(['check', '--root', root])).stdout).not.toContain('excluded');
+    });
   });
 });
