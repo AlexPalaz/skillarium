@@ -81,6 +81,31 @@ test('the viewer updates when a SKILL.md changes on disk', async ({ page }) => {
   await expect(page.getByText('Edited description.')).toBeVisible();
 });
 
+test('a link to a missing file is reported, and the report goes away when the file appears', async ({ page }) => {
+  await page.goto(`${HOSTILE_URL}skills/dangling/`);
+  const diagnostics = page.getByRole('list', { name: 'Diagnostics' });
+  const inSidebar = page.getByRole('navigation', { name: 'Skills' }).getByRole('link', { name: 'dangling' });
+
+  // Reported on the skill page, with the document and the target, and flagged in the sidebar.
+  await expect(diagnostics).toContainText('SKILL.md links to `references/checklist.md`, which does not exist.');
+  await expect(diagnostics).toContainText('broken-link');
+  await expect(diagnostics).not.toContainText('notes.md'); // the link that works is not mentioned
+  await expect(inSidebar.getByLabel('Has warnings')).toBeVisible();
+
+  // In the instructions the broken link is plain text, the working one a link.
+  const prose = page.locator('.prose');
+  await expect(prose.getByText('the checklist')).toBeVisible();
+  await expect(prose.getByRole('link', { name: 'the checklist' })).toHaveCount(0);
+  await expect(prose.getByRole('link', { name: 'the notes' })).toBeVisible();
+
+  // Create the missing file: the warning clears and the link starts working, without a reload.
+  fs.writeFileSync(path.join(scratch, 'skills', 'dangling', 'references', 'checklist.md'), '# Checklist\n');
+  await expect(diagnostics).toHaveCount(0);
+  await expect(inSidebar.getByLabel('Has warnings')).toHaveCount(0);
+  await prose.getByRole('link', { name: 'the checklist' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Checklist' })).toBeVisible();
+});
+
 test('a project without skills explains where Skillarium looked', async ({ page }) => {
   await page.goto(EMPTY_URL);
   await expect(page.getByRole('heading', { name: 'No Agent Skills found' })).toBeVisible();

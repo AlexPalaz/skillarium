@@ -30,7 +30,8 @@ export function resolveRelative(baseDir: string, target: string): string {
   return '../'.repeat(up) + out.join('/');
 }
 
-function linkTargets(text: string): string[] {
+/** Relative targets of the Markdown links and images in `text`, without fragment or query. */
+export function linkTargets(text: string): string[] {
   const targets: string[] = [];
   for (const match of text.matchAll(MARKDOWN_LINK)) {
     let target = match[1] ?? '';

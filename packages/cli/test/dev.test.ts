@@ -205,6 +205,30 @@ describe('command line', () => {
     expect(missing.stderr).toContain('No skill named "nope"');
   });
 
+  it('prints a broken link as a warning and does not fail a --strict build for it', async () => {
+    const root = await makeProject({
+      skills: { pdf: { 'SKILL.md': skillMd('pdf', 'Does pdf. Use for pdf.', 'See [guide](references/guide.md).') } },
+    });
+
+    const listed = await cli(['list', '--root', root]);
+    expect(listed.code).toBe(0);
+    expect(listed.stdout).toContain('1 warning'); // `list` counts; `inspect` and `build` give the detail
+
+    const json = JSON.parse((await cli(['list', '--json', '--root', root])).stdout) as {
+      diagnostics: { severity: string; code: string; file: string }[];
+    }[];
+    expect(json[0]!.diagnostics).toMatchObject([{ severity: 'warning', code: 'broken-link', file: 'SKILL.md' }]);
+
+    const inspected = await cli(['inspect', 'pdf', '--root', root]);
+    expect(inspected.stdout).toContain('SKILL.md links to `references/guide.md`, which does not exist.');
+    expect(inspected.stdout).toContain('broken-link');
+
+    // A warning is something to fix, not a reason to stop a release.
+    const strict = await cli(['build', '--root', root, '--strict', '--out-dir', path.join(root, 'out')]);
+    expect(strict.code).toBe(0);
+    expect(strict.stderr).toContain('which does not exist');
+  });
+
   it('uses exit code 2 for usage errors and supports --strict builds', async () => {
     expect((await cli(['frobnicate'])).code).toBe(2);
     expect((await cli(['--port', 'abc'])).code).toBe(2); // no command means `dev`, which validates the port

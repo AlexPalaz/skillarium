@@ -16,6 +16,10 @@ All notable changes to this project are documented here. The format follows
 - Architecture view: the help note can be put away as an icon; the choice is
   remembered.
 - Buttons, including folder and group toggles, show a pointer cursor.
+- `broken-link` warning: a relative Markdown link or image in a skill that
+  leads to no file is reported on the skill, in the viewer and on the command
+  line. Links inside code, links with a scheme and links that leave the
+  project are not checked.
 - `scripts/make-playground.mjs` (`pnpm playground`): generates a large,
   deterministic project for trying Skillarium at scale.
 
