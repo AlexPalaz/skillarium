@@ -8,8 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- Architecture view: hovering a node keeps it and everything one line away in
-  focus and dims the rest.
+- Architecture view: hovering a node keeps it, everything one line away and
+  the whole chain of skill links through it in focus, and dims the rest.
 - `scripts/make-playground.mjs` (`pnpm playground`): generates a large,
   deterministic project for trying Skillarium at scale.
 

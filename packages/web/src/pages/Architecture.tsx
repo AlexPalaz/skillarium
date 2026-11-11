@@ -15,6 +15,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { skillPath } from '../lib/base';
 import { useCatalog } from '../lib/catalog';
+import { focusOn } from '../lib/graphFocus';
 import { layoutBlocks, SKILL_HEIGHT, SKILL_WIDTH } from '../lib/graphLayout';
 import { useTheme } from '../lib/theme';
 import { Page } from '../components/Layout';
@@ -44,7 +45,7 @@ function GraphNodeView({ data }: NodeProps<FlowNode>) {
   return (
     <div
       title={isSkill ? `Skill: ${node.label}` : `${node.type}: ${node.path}`}
-      className={`lift flex cursor-pointer items-center gap-2 rounded-md border bg-surface px-3 text-[13px] ${
+      className={`flex cursor-pointer items-center gap-2 rounded-md border bg-surface px-3 text-[13px] transition-colors hover:border-fg ${
         isSkill ? 'h-11 w-[200px] border-line-strong text-sm font-medium' : 'h-8 w-[230px] border-line font-mono'
       }`}
       style={isSkill ? undefined : { borderLeft: `2px solid ${COLOR[node.type]}` }}
@@ -202,8 +203,8 @@ export function Architecture() {
 
   const laidOut = useMemo(() => layout(catalog.graph, visible, large), [catalog.graph, visible, large]);
 
-  // Hovering a node keeps it and everything one line away from it in focus,
-  // and dims the rest.
+  // Hovering a node keeps it, everything one line away from it and the whole
+  // chain of skill links through it in focus, and dims the rest.
   const [hovered, setHovered] = useState<string | null>(null);
   // The focus is let go a moment after the pointer leaves a node, so that
   // crossing the gap to a neighbour (a few pixels when zoomed out) does not
@@ -220,16 +221,18 @@ export function Architecture() {
   };
   const { nodes, edges } = useMemo(() => {
     if (hovered === null || !laidOut.nodes.some((node) => node.id === hovered)) return laidOut;
-    const near = new Set([hovered]);
-    for (const edge of laidOut.edges) {
-      if (edge.source === hovered) near.add(edge.target);
-      if (edge.target === hovered) near.add(edge.source);
-    }
+    const focus = focusOn(
+      hovered,
+      laidOut.edges.map((edge) => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        chain: (edge.data as { edge: GraphEdge } | undefined)?.edge.kind === 'links-to-skill',
+      })),
+    );
     return {
-      nodes: laidOut.nodes.map((node) => (near.has(node.id) ? node : { ...node, className: 'dimmed' })),
-      edges: laidOut.edges.map((edge) =>
-        edge.source === hovered || edge.target === hovered ? edge : { ...edge, className: 'dimmed' },
-      ),
+      nodes: laidOut.nodes.map((node) => (focus.nodes.has(node.id) ? node : { ...node, className: 'dimmed' })),
+      edges: laidOut.edges.map((edge) => (focus.edges.has(edge.id) ? edge : { ...edge, className: 'dimmed' })),
     };
   }, [laidOut, hovered]);
   const explicit = catalog.graph.edges.filter((e) => e.kind !== 'contains').length;
