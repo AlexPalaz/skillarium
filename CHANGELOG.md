@@ -20,6 +20,9 @@ All notable changes to this project are documented here. The format follows
   leads to no file is reported on the skill, in the viewer and on the command
   line. Links inside code, links with a scheme and links that leave the
   project are not checked.
+- Sidebar: when a catalog has skills with errors or warnings, buttons show
+  only those skills (All / Errors / Warnings); the choice also narrows search
+  results.
 - `scripts/make-playground.mjs` (`pnpm playground`): generates a large,
   deterministic project for trying Skillarium at scale.
 
