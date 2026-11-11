@@ -1,0 +1,26 @@
+{
+  "name": "skillarium-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Skillarium — the open-source workspace for Agent Skills.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "build": "pnpm --filter @skillarium/web build && pnpm --filter skillarium build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "dev:example": "node packages/cli/bin/skillarium.js dev --root examples/sample-project",
+    "build:example": "node packages/cli/bin/skillarium.js build --root examples/sample-project"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "^3.2.7"
+  }
+}

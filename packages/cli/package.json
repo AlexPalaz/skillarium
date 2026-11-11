@@ -1,0 +1,63 @@
+{
+  "name": "skillarium",
+  "version": "0.1.0",
+  "description": "Explore, document, and share your Agent Skills. A local viewer and static site generator for SKILL.md-based skills.",
+  "keywords": [
+    "agent-skills",
+    "skills",
+    "SKILL.md",
+    "ai-agents",
+    "documentation",
+    "static-site-generator",
+    "developer-tools"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlexPalaz/skillarium.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/AlexPalaz/skillarium#readme",
+  "bugs": "https://github.com/AlexPalaz/skillarium/issues",
+  "type": "module",
+  "bin": {
+    "skillarium": "./bin/skillarium.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "web",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "build": "tsup && tsc -p tsconfig.dts.json && node scripts/copy-web.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "prepack": "node scripts/prepack.mjs"
+  },
+  "dependencies": {
+    "cac": "^7.1.0",
+    "chokidar": "^4.0.3",
+    "ignore": "^7.0.14",
+    "jiti": "^2.7.0",
+    "open": "^11.0.4",
+    "picocolors": "^1.1.1",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@skillarium/core": "workspace:^",
+    "tsup": "^8.5.1"
+  }
+}

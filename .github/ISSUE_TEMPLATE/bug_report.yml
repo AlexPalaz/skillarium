@@ -1,0 +1,50 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: The command you ran and, if possible, a minimal skill folder (a `SKILL.md` is often enough). Remove anything private.
+      placeholder: |
+        1. Create skills/example/SKILL.md with ...
+        2. Run `npx skillarium dev`
+        3. Open ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Skillarium version
+      description: Output of `npx skillarium --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it happen?
+      multiple: true
+      options:
+        - skillarium dev
+        - skillarium build / static site
+        - skillarium preview
+        - skillarium list / inspect
+        - Skill discovery or parsing
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, and browser if the problem is in the viewer
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output or screenshots
+      render: text

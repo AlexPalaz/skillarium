@@ -1,0 +1,513 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/*
+ * Visual system
+ * -------------
+ * Dealt with tasteskill (design-taste-frontend 2.5.1) for a developer tool:
+ *   palette  forest-pale-lime   dark green ground, lime accent; the inverse
+ *                               (white ground, forest ink) is the light theme
+ *   type     host               Host Grotesk + JetBrains Mono, display at 500
+ *   radius   sharp              4 / 6 / 8
+ *   buttons  solid              mark: ring
+ *
+ * Rules kept from that system: the interface stays neutral and the accent is
+ * rare; hairlines are the ink at 13%; labels are sentence case at 13px/500,
+ * never tracked capitals; nothing is set under 13px; no violet; hover steps
+ * are short (150ms in, 120ms out, 90ms press) and only move transforms.
+ */
+
+@theme {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-fg: var(--accent-fg);
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+  --color-script: var(--script);
+  --color-reference: var(--reference);
+  --color-asset: var(--asset);
+
+  --font-sans: 'Host Grotesk Variable', 'Host Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* radius: sharp */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+
+  --tracking-tight: -0.035em;
+}
+
+:root {
+  /* motion */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --m-in: 150ms;
+  --m-out: 120ms;
+  --m-press: 90ms;
+}
+
+/* Light: the palette's inverse — white sheet, forest ink, the ink as action. */
+:root[data-theme='light'] {
+  --bg: #ffffff;
+  --surface: #f3f4f3;
+  --fg: #0f1f10;
+  --muted: #566156;
+  --faint: #667166;
+  --accent: #0f1f10;
+  --accent-fg: #ffffff;
+  --mark: #2f6b1f;
+  --danger: #a8261b;
+  --warn: #7a5200;
+  --script: #8a5200;
+  --reference: #1a4be0;
+  --asset: #a3264b;
+  --hl-keyword: #1f6a2e;
+  --hl-string: #8a4a00;
+  --hl-number: #1a4be0;
+  --hl-comment: #667166;
+  --hl-title: #0f1f10;
+  --hl-attr: #a3264b;
+  color-scheme: light;
+}
+
+/* Dark, the default: forest ground, pale lime accent. */
+:root,
+:root[data-theme='dark'] {
+  --bg: #0f1f10;
+  --surface: #162a17;
+  --fg: #ffffff;
+  --muted: #a3aca3;
+  --faint: #8f998f;
+  --accent: #c6f19d;
+  --accent-fg: #0f1f10;
+  --mark: #c6f19d;
+  --danger: #ff9c8f;
+  --warn: #f2c66a;
+  --script: #f0c06a;
+  --reference: #8cc4f5;
+  --asset: #f59ab3;
+  --hl-keyword: #c6f19d;
+  --hl-string: #f2cf96;
+  --hl-number: #8cc4f5;
+  --hl-comment: #8f998f;
+  --hl-title: #ffffff;
+  --hl-attr: #f59ab3;
+  color-scheme: dark;
+}
+
+:root {
+  --line: color-mix(in oklab, var(--fg) 13%, transparent);
+  --line-strong: color-mix(in oklab, var(--fg) 28%, transparent);
+  --sunken: color-mix(in oklab, var(--fg) 6%, var(--bg));
+  --accent-soft: color-mix(in oklab, var(--accent) 11%, var(--bg));
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  font-feature-settings: 'ss01', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+}
+
+/* Focus: a 2px ring in the action colour, 2px off the control, no transition. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 30%, transparent);
+}
+
+mark {
+  background: color-mix(in oklab, var(--mark) 30%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* A label: sentence case, 13px at 500. */
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* The mark: a ring in the accent, beside the name set in the display face. */
+.brand-mark {
+  display: inline-block;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  background: var(--mark);
+  -webkit-mask: var(--ring) center / contain no-repeat;
+  mask: var(--ring) center / contain no-repeat;
+  --ring: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 5.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9z'/%3E%3C/svg%3E");
+}
+
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+/* ---------- Hover and press layer ---------- */
+
+.btn-step,
+.lift {
+  transition:
+    transform var(--m-out) var(--ease),
+    border-color var(--m-out) var(--ease),
+    background-color var(--m-out) var(--ease),
+    color var(--m-out) var(--ease),
+    box-shadow var(--m-out) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  /* a button steps up 1px; a linked card lifts 2px and its border darkens */
+  .btn-step:hover {
+    transform: translateY(-1px);
+    transition-duration: var(--m-in);
+  }
+  .lift:hover {
+    transform: translateY(-2px);
+    border-color: var(--line-strong);
+    box-shadow: 0 12px 24px -12px color-mix(in oklab, var(--fg) 14%, transparent);
+    transition-duration: 180ms;
+  }
+}
+.btn-step:active {
+  transform: translateY(1px) scale(0.985);
+  transition-duration: var(--m-press);
+}
+
+/* Links in running text rest on a faint hairline; an ink line draws in from the left. */
+.prose a,
+.link {
+  color: var(--fg);
+  text-decoration: none;
+  background-image:
+    linear-gradient(currentColor, currentColor), linear-gradient(var(--line-strong), var(--line-strong));
+  background-repeat: no-repeat;
+  background-position:
+    0 100%,
+    0 100%;
+  background-size:
+    0 1px,
+    100% 1px;
+  padding-bottom: 1px;
+  transition: background-size var(--m-out) var(--ease);
+}
+.prose a:hover,
+.prose a:focus-visible,
+.link:hover,
+.link:focus-visible {
+  background-size:
+    100% 1px,
+    100% 1px;
+  transition-duration: var(--m-in);
+}
+:root[data-theme='dark'] .prose a,
+:root[data-theme='dark'] .link {
+  color: var(--accent);
+}
+
+/* The current item of a vertical list: a 2px bar in the accent. */
+.nav-current[aria-current='page'] {
+  box-shadow: inset 2px 0 0 var(--mark);
+}
+/* The current word of the top bar: a 2px bar under it. */
+.top-link {
+  position: relative;
+}
+.top-link[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--mark);
+}
+
+/* ---------- Rendered Markdown ---------- */
+
+.prose {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--fg);
+  overflow-wrap: break-word;
+  max-width: 72ch;
+}
+.prose > :first-child {
+  margin-top: 0;
+}
+.prose > :last-child {
+  margin-bottom: 0;
+}
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  font-weight: 500;
+  line-height: 1.2;
+  scroll-margin-top: 24px;
+}
+.prose h1 {
+  font-size: 30px;
+  letter-spacing: -0.035em;
+  margin: 48px 0 16px;
+}
+.prose h2 {
+  font-size: 22px;
+  letter-spacing: -0.025em;
+  margin: 48px 0 12px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.prose h3 {
+  font-size: 18px;
+  margin: 32px 0 8px;
+}
+.prose h4,
+.prose h5,
+.prose h6 {
+  font-size: 16px;
+  margin: 24px 0 8px;
+}
+.prose p,
+.prose ul,
+.prose ol,
+.prose blockquote,
+.prose .table-wrap,
+.prose .codeblock {
+  margin: 0 0 16px;
+}
+.prose ul,
+.prose ol {
+  padding-left: 24px;
+}
+.prose ul {
+  list-style: disc;
+}
+.prose ol {
+  list-style: decimal;
+}
+.prose li {
+  margin: 4px 0;
+}
+.prose li::marker {
+  color: var(--faint);
+}
+.prose li > ul,
+.prose li > ol {
+  margin: 4px 0;
+}
+.prose ul.contains-task-list {
+  list-style: none;
+  padding-left: 4px;
+}
+.prose input[type='checkbox'] {
+  margin-right: 8px;
+  accent-color: var(--mark);
+}
+.prose strong {
+  font-weight: 600;
+}
+.prose blockquote {
+  border-left: 2px solid var(--mark);
+  padding: 4px 0 4px 16px;
+  color: var(--muted);
+}
+.prose blockquote > :last-child {
+  margin-bottom: 0;
+}
+.prose hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 32px 0;
+}
+.prose :not(pre) > code {
+  font-size: 0.86em;
+  background: var(--sunken);
+  border-radius: 4px;
+  padding: 0.12em 0.36em;
+}
+.prose pre {
+  margin: 0;
+  padding: 16px;
+  overflow-x: auto;
+  font-size: 13.5px;
+  line-height: 1.65;
+  tab-size: 2;
+}
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.prose .table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.prose th,
+.prose td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.prose th {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.prose tr:last-child td {
+  border-bottom: 0;
+}
+
+.codeblock {
+  position: relative;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+/* ---------- Syntax highlighting (highlight.js class names) ---------- */
+
+.hljs-comment,
+.hljs-quote,
+.hljs-meta {
+  color: var(--hl-comment);
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-built_in,
+.hljs-type,
+.hljs-doctag {
+  color: var(--hl-keyword);
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-symbol,
+.hljs-template-tag,
+.hljs-template-variable {
+  color: var(--hl-string);
+}
+.hljs-number,
+.hljs-bullet,
+.hljs-variable {
+  color: var(--hl-number);
+}
+.hljs-title,
+.hljs-section,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: var(--hl-title);
+  font-weight: 600;
+}
+.hljs-attr,
+.hljs-attribute,
+.hljs-property,
+.hljs-params,
+.hljs-link {
+  color: var(--hl-attr);
+}
+.hljs-deletion {
+  color: var(--danger);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
+}
+
+/* ---------- React Flow theming ---------- */
+
+.react-flow {
+  --xy-background-color: var(--bg);
+  --xy-edge-stroke: var(--line-strong);
+  --xy-controls-button-background-color: var(--surface);
+  --xy-controls-button-background-color-hover: var(--sunken);
+  --xy-controls-button-color: var(--fg);
+  --xy-controls-button-color-hover: var(--fg);
+  --xy-controls-button-border-color: var(--line);
+  --xy-attribution-background-color: transparent;
+  font-family: var(--font-sans);
+}
+.react-flow__controls {
+  box-shadow: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.react-flow__attribution a {
+  color: var(--faint);
+}
+.react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Under reduced motion everything rests. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
