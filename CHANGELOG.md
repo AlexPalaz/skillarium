@@ -22,6 +22,9 @@ All notable changes to this project are documented here. The format follows
   frontmatter block.
 - Architecture view: the layout widens with the size of the catalog, and
   above 30 skills it opens with files hidden.
+- Architecture view: when only skills are shown, linked skills are arranged
+  left to right along their links, in separate groups, and skills without
+  links sit in a grid underneath, so lines no longer cross unrelated nodes.
 
 ## [0.1.0] - 2026-11-11
 

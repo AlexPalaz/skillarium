@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { skillPath } from '../lib/base';
 import { useCatalog } from '../lib/catalog';
+import { layoutSkills } from '../lib/graphLayout';
 import { useTheme } from '../lib/theme';
 import { Page } from '../components/Layout';
 import { NoSkills } from './Overview';
@@ -96,9 +97,22 @@ function layout(graph: SkillGraph, visible: Set<ResourceKind>): { nodes: FlowNod
 
   const nodes: FlowNode[] = [];
   const shown = new Set<string>();
+
+  // With no files on screen the links between skills are all there is to
+  // read, so the skills are arranged along them instead of in blocks.
+  const skillsOnly = blocks.every((b) => b.files.length === 0);
+  if (skillsOnly) {
+    const links = graph.edges.filter((edge) => edge.kind === 'links-to-skill');
+    const at = layoutSkills(skills.map((skill) => skill.id), links);
+    for (const skill of skills) {
+      shown.add(skill.id);
+      nodes.push({ id: skill.id, type: 'item', position: at.get(skill.id) ?? { x: 0, y: 0 }, data: { node: skill } });
+    }
+  }
+
   let column = 0;
   let y = 0;
-  for (const block of blocks) {
+  for (const block of skillsOnly ? [] : blocks) {
     if (y > 0 && y + block.height / 2 > target && column < columnCount - 1) {
       column++;
       y = 0;
@@ -123,8 +137,10 @@ function layout(graph: SkillGraph, visible: Set<ResourceKind>): { nodes: FlowNod
         id: edge.id,
         source: edge.source,
         target: edge.target,
-        sourceHandle: skillToSkill ? 'out-left' : 'out',
-        targetHandle: skillToSkill ? 'in-left' : fromFile ? 'in-right' : 'in',
+        // Between blocks a skill link loops around the left; along the flow
+        // layout it simply runs from one column to the next.
+        sourceHandle: skillToSkill && !skillsOnly ? 'out-left' : 'out',
+        targetHandle: skillToSkill && !skillsOnly ? 'in-left' : fromFile ? 'in-right' : 'in',
         data: { edge },
         animated: explicit, // a pulse runs along explicit references
         interactionWidth: 14,
