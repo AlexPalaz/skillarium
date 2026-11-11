@@ -139,8 +139,9 @@ test('a link into another skill navigates to that skill', async ({ page }) => {
 
 test('search finds skills by content and file name, with the keyboard', async ({ page }) => {
   await page.goto(url());
-  await page.keyboard.press('/');
   const search = page.getByRole('searchbox', { name: 'Search skills' });
+  await expect(search).toBeVisible(); // the shortcut exists once the catalog has loaded
+  await page.keyboard.press('/');
   await expect(search).toBeFocused();
 
   await search.fill('concurrently');
