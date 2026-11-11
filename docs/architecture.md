@@ -84,6 +84,7 @@ A static host decides the content type from the file extension. If a skill's `pa
 | Markdown | `react-markdown`, `remark-gfm`, `rehype-highlight`, `rehype-slug` | Renders to React elements, never raw HTML. |
 | Search | `minisearch` | Client-side lexical search with prefix and fuzzy matching, a few kilobytes. |
 | Graph | `@xyflow/react` (React Flow) | Maintained; loaded only on the architecture page. |
+| Graph layout | `@dagrejs/dagre` | Layered layout for groups of linked skills; loaded with the graph. |
 
 No database, no authentication, no hosted service, no LLM.
 

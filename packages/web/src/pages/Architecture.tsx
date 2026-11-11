@@ -11,10 +11,12 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { skillPath } from '../lib/base';
 import { useCatalog } from '../lib/catalog';
+import { focusOn } from '../lib/graphFocus';
+import { layoutBlocks, SKILL_HEIGHT, SKILL_WIDTH } from '../lib/graphLayout';
 import { useTheme } from '../lib/theme';
 import { Page } from '../components/Layout';
 import { NoSkills } from './Overview';
@@ -43,7 +45,7 @@ function GraphNodeView({ data }: NodeProps<FlowNode>) {
   return (
     <div
       title={isSkill ? `Skill: ${node.label}` : `${node.type}: ${node.path}`}
-      className={`lift flex cursor-pointer items-center gap-2 rounded-md border bg-surface px-3 text-[13px] ${
+      className={`flex cursor-pointer items-center gap-2 rounded-md border bg-surface px-3 text-[13px] transition-colors hover:border-fg ${
         isSkill ? 'h-11 w-[200px] border-line-strong text-sm font-medium' : 'h-8 w-[230px] border-line font-mono'
       }`}
       style={isSkill ? undefined : { borderLeft: `2px solid ${COLOR[node.type]}` }}
@@ -55,6 +57,7 @@ function GraphNodeView({ data }: NodeProps<FlowNode>) {
       <Handle type="target" position={Position.Right} id="in-right" />
       <Handle type="source" position={Position.Left} id="out-left" />
       <Handle type="target" position={Position.Left} id="in-left" />
+      <Handle type="source" position={Position.Bottom} id="out-bottom" style={{ left: 12 }} />
     </div>
   );
 }
@@ -69,6 +72,12 @@ const SKILL_ONLY_HEIGHT = 56;
 const SCREEN_RATIO = 1.6;
 /** Above this many skills the graph opens with files hidden. */
 const LARGE_CATALOG = 30;
+/** A skill with its files underneath: indent, row height and total width. */
+const TREE_INDENT = 24;
+const TREE_ROW = 36;
+const TREE_WIDTH = TREE_INDENT + 230;
+/** How long the hover focus is kept after the pointer leaves a node. */
+const FOCUS_RELEASE_MS = 260;
 const KIND_ORDER: ResourceKind[] = ['script', 'reference', 'asset', 'other'];
 
 /**
@@ -78,7 +87,11 @@ const KIND_ORDER: ResourceKind[] = ['script', 'reference', 'asset', 'other'];
  * file-to-file references loop around the right side, skill-to-skill links
  * around the left.
  */
-function layout(graph: SkillGraph, visible: Set<ResourceKind>): { nodes: FlowNode[]; edges: Edge[] } {
+function layout(
+  graph: SkillGraph,
+  visible: Set<ResourceKind>,
+  large: boolean,
+): { nodes: FlowNode[]; edges: Edge[] } {
   const skills = graph.nodes.filter((n) => n.type === 'skill');
   const blocks = skills.map((skill) => {
     const files = graph.nodes
@@ -96,9 +109,41 @@ function layout(graph: SkillGraph, visible: Set<ResourceKind>): { nodes: FlowNod
 
   const nodes: FlowNode[] = [];
   const shown = new Set<string>();
+
+  // Along the links: used when only skills are shown, and for large catalogs
+  // whatever is shown. Each skill carries its files underneath it, like a
+  // folder, so a block is one narrow column and the links between skills run
+  // through the space between columns.
+  const flow = large || blocks.every((b) => b.files.length === 0);
+  if (flow) {
+    const links = graph.edges.filter((edge) => edge.kind === 'links-to-skill');
+    const at = layoutBlocks(
+      blocks.map((b) => ({
+        id: b.skill.id,
+        width: b.files.length > 0 ? TREE_WIDTH : SKILL_WIDTH,
+        height: SKILL_HEIGHT + (b.files.length > 0 ? 6 + b.files.length * TREE_ROW : 0),
+      })),
+      links,
+    );
+    for (const block of blocks) {
+      const origin = at.get(block.skill.id) ?? { x: 0, y: 0 };
+      shown.add(block.skill.id);
+      nodes.push({ id: block.skill.id, type: 'item', position: origin, data: { node: block.skill } });
+      block.files.forEach((node, row) => {
+        shown.add(node.id);
+        nodes.push({
+          id: node.id,
+          type: 'item',
+          position: { x: origin.x + TREE_INDENT, y: origin.y + SKILL_HEIGHT + 6 + row * TREE_ROW },
+          data: { node },
+        });
+      });
+    }
+  }
+
   let column = 0;
   let y = 0;
-  for (const block of blocks) {
+  for (const block of flow ? [] : blocks) {
     if (y > 0 && y + block.height / 2 > target && column < columnCount - 1) {
       column++;
       y = 0;
@@ -123,8 +168,12 @@ function layout(graph: SkillGraph, visible: Set<ResourceKind>): { nodes: FlowNod
         id: edge.id,
         source: edge.source,
         target: edge.target,
-        sourceHandle: skillToSkill ? 'out-left' : 'out',
-        targetHandle: skillToSkill ? 'in-left' : fromFile ? 'in-right' : 'in',
+        // Between blocks a skill link loops around the left; along the flow
+        // layout it runs from one column to the next, and a skill reaches its
+        // files with an elbow down its left edge.
+        sourceHandle: flow ? (skillToSkill || fromFile ? 'out' : 'out-bottom') : skillToSkill ? 'out-left' : 'out',
+        targetHandle: skillToSkill && !flow ? 'in-left' : fromFile ? 'in-right' : 'in',
+        type: flow && !skillToSkill && !fromFile ? 'smoothstep' : undefined,
         data: { edge },
         animated: explicit, // a pulse runs along explicit references
         interactionWidth: 14,
@@ -152,23 +201,38 @@ export function Architecture() {
     document.title = `Architecture · ${catalog.project.title}`;
   }, [catalog.project.title]);
 
-  const laidOut = useMemo(() => layout(catalog.graph, visible), [catalog.graph, visible]);
+  const laidOut = useMemo(() => layout(catalog.graph, visible, large), [catalog.graph, visible, large]);
 
-  // Hovering a node keeps it and everything one line away from it in focus,
-  // and dims the rest.
+  // Hovering a node keeps it, everything one line away from it and the whole
+  // chain of skill links through it in focus, and dims the rest.
   const [hovered, setHovered] = useState<string | null>(null);
+  // The focus is let go a moment after the pointer leaves a node, so that
+  // crossing the gap to a neighbour (a few pixels when zoomed out) does not
+  // make the graph flash.
+  const release = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(release.current), []);
+  const focus = (id: string) => {
+    window.clearTimeout(release.current);
+    setHovered(id);
+  };
+  const unfocus = () => {
+    window.clearTimeout(release.current);
+    release.current = window.setTimeout(() => setHovered(null), FOCUS_RELEASE_MS);
+  };
   const { nodes, edges } = useMemo(() => {
     if (hovered === null || !laidOut.nodes.some((node) => node.id === hovered)) return laidOut;
-    const near = new Set([hovered]);
-    for (const edge of laidOut.edges) {
-      if (edge.source === hovered) near.add(edge.target);
-      if (edge.target === hovered) near.add(edge.source);
-    }
+    const focus = focusOn(
+      hovered,
+      laidOut.edges.map((edge) => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        chain: (edge.data as { edge: GraphEdge } | undefined)?.edge.kind === 'links-to-skill',
+      })),
+    );
     return {
-      nodes: laidOut.nodes.map((node) => (near.has(node.id) ? node : { ...node, className: 'dimmed' })),
-      edges: laidOut.edges.map((edge) =>
-        edge.source === hovered || edge.target === hovered ? edge : { ...edge, className: 'dimmed' },
-      ),
+      nodes: laidOut.nodes.map((node) => (focus.nodes.has(node.id) ? node : { ...node, className: 'dimmed' })),
+      edges: laidOut.edges.map((edge) => (focus.edges.has(edge.id) ? edge : { ...edge, className: 'dimmed' })),
     };
   }, [laidOut, hovered]);
   const explicit = catalog.graph.edges.filter((e) => e.kind !== 'contains').length;
@@ -243,8 +307,8 @@ export function Architecture() {
             const { skillId, path } = (node.data as FlowData).node;
             navigate(skillPath(skillId, path));
           }}
-          onNodeMouseEnter={(_event, node) => setHovered(node.id)}
-          onNodeMouseLeave={() => setHovered(null)}
+          onNodeMouseEnter={(_event, node) => focus(node.id)}
+          onNodeMouseLeave={unfocus}
           onEdgeClick={(_event, edge) => setSelected((edge.data as { edge: GraphEdge }).edge)}
           onPaneClick={() => setSelected(null)}
           proOptions={{ hideAttribution: false }}

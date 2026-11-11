@@ -8,8 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- Architecture view: hovering a node keeps it and everything one line away in
-  focus and dims the rest.
+- Architecture view: hovering a node keeps it, everything one line away and
+  the whole chain of skill links through it in focus, and dims the rest.
 - `scripts/make-playground.mjs` (`pnpm playground`): generates a large,
   deterministic project for trying Skillarium at scale.
 
@@ -22,6 +22,11 @@ All notable changes to this project are documented here. The format follows
   frontmatter block.
 - Architecture view: the layout widens with the size of the catalog, and
   above 30 skills it opens with files hidden.
+- Architecture view: when only skills are shown, and in large catalogs also
+  with files shown, linked skills are arranged left to right along their
+  links, in separate groups, and skills without links sit underneath, so
+  lines no longer cross unrelated nodes. In large catalogs a skill's files
+  are listed under it, like a folder.
 
 ## [0.1.0] - 2026-11-11
 
