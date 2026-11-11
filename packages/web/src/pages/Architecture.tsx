@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { skillPath } from '../lib/base';
 import { useCatalog } from '../lib/catalog';
-import { layoutSkills } from '../lib/graphLayout';
+import { layoutBlocks, SKILL_HEIGHT, SKILL_WIDTH } from '../lib/graphLayout';
 import { useTheme } from '../lib/theme';
 import { Page } from '../components/Layout';
 import { NoSkills } from './Overview';
@@ -56,6 +56,7 @@ function GraphNodeView({ data }: NodeProps<FlowNode>) {
       <Handle type="target" position={Position.Right} id="in-right" />
       <Handle type="source" position={Position.Left} id="out-left" />
       <Handle type="target" position={Position.Left} id="in-left" />
+      <Handle type="source" position={Position.Bottom} id="out-bottom" style={{ left: 12 }} />
     </div>
   );
 }
@@ -70,6 +71,10 @@ const SKILL_ONLY_HEIGHT = 56;
 const SCREEN_RATIO = 1.6;
 /** Above this many skills the graph opens with files hidden. */
 const LARGE_CATALOG = 30;
+/** A skill with its files underneath: indent, row height and total width. */
+const TREE_INDENT = 24;
+const TREE_ROW = 36;
+const TREE_WIDTH = TREE_INDENT + 230;
 const KIND_ORDER: ResourceKind[] = ['script', 'reference', 'asset', 'other'];
 
 /**
@@ -79,7 +84,11 @@ const KIND_ORDER: ResourceKind[] = ['script', 'reference', 'asset', 'other'];
  * file-to-file references loop around the right side, skill-to-skill links
  * around the left.
  */
-function layout(graph: SkillGraph, visible: Set<ResourceKind>): { nodes: FlowNode[]; edges: Edge[] } {
+function layout(
+  graph: SkillGraph,
+  visible: Set<ResourceKind>,
+  large: boolean,
+): { nodes: FlowNode[]; edges: Edge[] } {
   const skills = graph.nodes.filter((n) => n.type === 'skill');
   const blocks = skills.map((skill) => {
     const files = graph.nodes
@@ -98,21 +107,40 @@ function layout(graph: SkillGraph, visible: Set<ResourceKind>): { nodes: FlowNod
   const nodes: FlowNode[] = [];
   const shown = new Set<string>();
 
-  // With no files on screen the links between skills are all there is to
-  // read, so the skills are arranged along them instead of in blocks.
-  const skillsOnly = blocks.every((b) => b.files.length === 0);
-  if (skillsOnly) {
+  // Along the links: used when only skills are shown, and for large catalogs
+  // whatever is shown. Each skill carries its files underneath it, like a
+  // folder, so a block is one narrow column and the links between skills run
+  // through the space between columns.
+  const flow = large || blocks.every((b) => b.files.length === 0);
+  if (flow) {
     const links = graph.edges.filter((edge) => edge.kind === 'links-to-skill');
-    const at = layoutSkills(skills.map((skill) => skill.id), links);
-    for (const skill of skills) {
-      shown.add(skill.id);
-      nodes.push({ id: skill.id, type: 'item', position: at.get(skill.id) ?? { x: 0, y: 0 }, data: { node: skill } });
+    const at = layoutBlocks(
+      blocks.map((b) => ({
+        id: b.skill.id,
+        width: b.files.length > 0 ? TREE_WIDTH : SKILL_WIDTH,
+        height: SKILL_HEIGHT + (b.files.length > 0 ? 6 + b.files.length * TREE_ROW : 0),
+      })),
+      links,
+    );
+    for (const block of blocks) {
+      const origin = at.get(block.skill.id) ?? { x: 0, y: 0 };
+      shown.add(block.skill.id);
+      nodes.push({ id: block.skill.id, type: 'item', position: origin, data: { node: block.skill } });
+      block.files.forEach((node, row) => {
+        shown.add(node.id);
+        nodes.push({
+          id: node.id,
+          type: 'item',
+          position: { x: origin.x + TREE_INDENT, y: origin.y + SKILL_HEIGHT + 6 + row * TREE_ROW },
+          data: { node },
+        });
+      });
     }
   }
 
   let column = 0;
   let y = 0;
-  for (const block of skillsOnly ? [] : blocks) {
+  for (const block of flow ? [] : blocks) {
     if (y > 0 && y + block.height / 2 > target && column < columnCount - 1) {
       column++;
       y = 0;
@@ -138,9 +166,11 @@ function layout(graph: SkillGraph, visible: Set<ResourceKind>): { nodes: FlowNod
         source: edge.source,
         target: edge.target,
         // Between blocks a skill link loops around the left; along the flow
-        // layout it simply runs from one column to the next.
-        sourceHandle: skillToSkill && !skillsOnly ? 'out-left' : 'out',
-        targetHandle: skillToSkill && !skillsOnly ? 'in-left' : fromFile ? 'in-right' : 'in',
+        // layout it runs from one column to the next, and a skill reaches its
+        // files with an elbow down its left edge.
+        sourceHandle: flow ? (skillToSkill || fromFile ? 'out' : 'out-bottom') : skillToSkill ? 'out-left' : 'out',
+        targetHandle: skillToSkill && !flow ? 'in-left' : fromFile ? 'in-right' : 'in',
+        type: flow && !skillToSkill && !fromFile ? 'smoothstep' : undefined,
         data: { edge },
         animated: explicit, // a pulse runs along explicit references
         interactionWidth: 14,
@@ -168,7 +198,7 @@ export function Architecture() {
     document.title = `Architecture · ${catalog.project.title}`;
   }, [catalog.project.title]);
 
-  const laidOut = useMemo(() => layout(catalog.graph, visible), [catalog.graph, visible]);
+  const laidOut = useMemo(() => layout(catalog.graph, visible, large), [catalog.graph, visible, large]);
 
   // Hovering a node keeps it and everything one line away from it in focus,
   // and dims the rest.

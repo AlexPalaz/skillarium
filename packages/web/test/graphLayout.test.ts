@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { layoutSkills, SKILL_HEIGHT, SKILL_WIDTH, type Link, type Point } from '../src/lib/graphLayout';
+import {
+  layoutBlocks,
+  layoutSkills,
+  SKILL_HEIGHT,
+  SKILL_WIDTH,
+  type Block,
+  type Link,
+  type Point,
+} from '../src/lib/graphLayout';
 
 // The skills-only graph must stay readable in a large catalog. These tests
 // state what "readable" means in terms that can be checked: nothing overlaps,
@@ -89,5 +97,34 @@ describe('layoutSkills', () => {
     expect(at.get('s0')).toEqual({ x: 0, y: 0 });
     expect(new Set([...at.values()].map((p) => p.y)).size).toBeGreaterThan(1); // more than one row
     expect(anyOverlap(at)).toBe(false);
+  });
+
+  it('lays out blocks of different sizes (skills with their files) without overlaps', () => {
+    // Heights vary like real skills: none, a few or many files.
+    const blocks: Block[] = Array.from({ length: 150 }, (_, i) => ({
+      id: `s${i}`,
+      width: 250,
+      height: 44 + ((i * 5) % 9) * 36,
+    }));
+    const { links } = large(150);
+    const at = layoutBlocks(blocks, links);
+    expect(at.size).toBe(150);
+
+    const boxes = blocks.map((block) => ({ ...block, ...at.get(block.id)! }));
+    const clash = boxes.some((a, i) =>
+      boxes.slice(i + 1).some(
+        (b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height,
+      ),
+    );
+    expect(clash).toBe(false);
+
+    const width = Math.max(...boxes.map((b) => b.x + b.width));
+    const height = Math.max(...boxes.map((b) => b.y + b.height));
+    expect(width / height).toBeGreaterThan(0.7);
+    expect(width / height).toBeLessThan(3.5);
+
+    // A linked block still sits one column after the block that links to it.
+    const [first] = links;
+    expect(at.get(first!.target)!.x).toBeGreaterThan(at.get(first!.source)!.x + 250);
   });
 });
