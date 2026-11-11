@@ -1,8 +1,28 @@
-<img src="packages/web/public/favicon.svg" width="72" height="72" alt="Skillarium logo: a diamond above an open book">
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/skillarium-wordmark-dark.svg">
+    <img src="docs/assets/skillarium-wordmark-light.svg" alt="Skillarium" width="420">
+  </picture>
+</h1>
 
-# Skillarium
+<p align="center">
+  <strong>The open-source workspace for Agent Skills.</strong><br>
+  Explore, document, and share the skills in your repository.
+</p>
 
-**The open-source workspace for Agent Skills.** Explore, document, and share the skills in your repository.
+<p align="center">
+  <a href="https://github.com/AlexPalaz/skillarium/actions/workflows/ci.yml"><img src="https://github.com/AlexPalaz/skillarium/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2f6b1f" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/node-%E2%89%A5%2020.19-2f6b1f" alt="Node.js 20.19 or newer">
+</p>
+
+<p align="center">
+  <a href="#usage">Usage</a> ·
+  <a href="docs/configuration.md">Configuration</a> ·
+  <a href="docs/deployment.md">Deployment</a> ·
+  <a href="docs/architecture.md">Architecture</a> ·
+  <a href="docs/security.md">Security</a>
+</p>
 
 Skillarium is to Agent Skills what Storybook is to UI components: point it at a project and it turns the `SKILL.md` files and their supporting scripts, references and assets into a searchable, browsable site — locally while you work, or as a static website you can publish.
 
