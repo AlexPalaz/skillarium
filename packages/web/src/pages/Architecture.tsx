@@ -9,12 +9,14 @@ import {
   type Edge,
   type Node,
   type NodeProps,
+  type ReactFlowInstance,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { skillPath } from '../lib/base';
 import { useCatalog } from '../lib/catalog';
+import { filterGraph } from '../lib/graphFilter';
 import { focusOn } from '../lib/graphFocus';
 import { layoutBlocks, SKILL_HEIGHT, SKILL_WIDTH } from '../lib/graphLayout';
 import { useTheme } from '../lib/theme';
@@ -63,6 +65,12 @@ function GraphNodeView({ data }: NodeProps<FlowNode>) {
 }
 
 const nodeTypes = { item: GraphNodeView };
+const FIT = { padding: 0.18, maxZoom: 1.1 };
+
+// Rendered sizes of the two kinds of node, so that nodes off screen can be
+// left out without being measured first.
+const SKILL_SIZE = { initialWidth: 200, initialHeight: 44 };
+const FILE_SIZE = { initialWidth: 230, initialHeight: 32 };
 
 const ROW = 40;
 const BLOCK_GAP = 36;
@@ -76,6 +84,8 @@ const LARGE_CATALOG = 30;
 const TREE_INDENT = 24;
 const TREE_ROW = 36;
 const TREE_WIDTH = TREE_INDENT + 230;
+/** Above this many nodes only the ones on screen are rendered. */
+const VIRTUALIZE_ABOVE = 100;
 /** How long the hover focus is kept after the pointer leaves a node. */
 const FOCUS_RELEASE_MS = 260;
 const KIND_ORDER: ResourceKind[] = ['script', 'reference', 'asset', 'other'];
@@ -128,7 +138,7 @@ function layout(
     for (const block of blocks) {
       const origin = at.get(block.skill.id) ?? { x: 0, y: 0 };
       shown.add(block.skill.id);
-      nodes.push({ id: block.skill.id, type: 'item', position: origin, data: { node: block.skill } });
+      nodes.push({ id: block.skill.id, type: 'item', position: origin, data: { node: block.skill }, ...SKILL_SIZE });
       block.files.forEach((node, row) => {
         shown.add(node.id);
         nodes.push({
@@ -136,6 +146,7 @@ function layout(
           type: 'item',
           position: { x: origin.x + TREE_INDENT, y: origin.y + SKILL_HEIGHT + 6 + row * TREE_ROW },
           data: { node },
+          ...FILE_SIZE,
         });
       });
     }
@@ -150,10 +161,10 @@ function layout(
     }
     const x = column * blockWidth;
     shown.add(block.skill.id);
-    nodes.push({ id: block.skill.id, type: 'item', position: { x, y }, data: { node: block.skill } });
+    nodes.push({ id: block.skill.id, type: 'item', position: { x, y }, data: { node: block.skill }, ...SKILL_SIZE });
     block.files.forEach((node, row) => {
       shown.add(node.id);
-      nodes.push({ id: node.id, type: 'item', position: { x: x + 300, y: y + row * ROW + 6 }, data: { node } });
+      nodes.push({ id: node.id, type: 'item', position: { x: x + 300, y: y + row * ROW + 6 }, data: { node }, ...FILE_SIZE });
     });
     y += block.height;
   }
@@ -201,7 +212,23 @@ export function Architecture() {
     document.title = `Architecture · ${catalog.project.title}`;
   }, [catalog.project.title]);
 
-  const laidOut = useMemo(() => layout(catalog.graph, visible, large), [catalog.graph, visible, large]);
+  const [query, setQuery] = useState('');
+  const graph = useMemo(() => filterGraph(catalog.graph, query), [catalog.graph, query]);
+  const matching = useMemo(() => graph.nodes.filter((n) => n.type === 'skill').length, [graph]);
+  const laidOut = useMemo(() => layout(graph, visible, large), [graph, visible, large]);
+
+  // When the filter or the visible file types change, the graph is laid out
+  // again: bring the new arrangement into view.
+  const flowRef = useRef<ReactFlowInstance<FlowNode, Edge> | null>(null);
+  const firstLayout = useRef(true);
+  useEffect(() => {
+    if (firstLayout.current) {
+      firstLayout.current = false;
+      return;
+    }
+    const frame = requestAnimationFrame(() => void flowRef.current?.fitView(FIT));
+    return () => cancelAnimationFrame(frame);
+  }, [laidOut]);
 
   // Hovering a node keeps it, everything one line away from it and the whole
   // chain of skill links through it in focus, and dims the rest.
@@ -278,6 +305,22 @@ export function Architecture() {
             );
           })}
         </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => event.key === 'Escape' && setQuery('')}
+            placeholder="Filter skills and files"
+            aria-label="Filter the graph"
+            autoComplete="off"
+            spellCheck={false}
+            className="w-56 rounded-md border border-line bg-bg px-2.5 py-1 text-sm placeholder:text-faint focus:border-accent focus:outline-none"
+          />
+          <span className="text-[13px] tabular-nums text-muted" role="status" aria-label="Skills shown">
+            {query.trim() ? `${matching} of ${catalog.skills.length} skills` : `${catalog.skills.length} skills`}
+          </span>
+        </div>
         <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted" aria-label="Legend">
           <span className="inline-flex items-center gap-1.5">
             <svg width="26" height="6" aria-hidden="true"><line x1="0" y1="3" x2="26" y2="3" stroke="var(--line-strong)" strokeWidth="1.5" /></svg>
@@ -297,7 +340,9 @@ export function Architecture() {
           nodeTypes={nodeTypes}
           colorMode={theme}
           fitView
-          fitViewOptions={{ padding: 0.18, maxZoom: 1.1 }}
+          fitViewOptions={FIT}
+          onInit={(instance) => (flowRef.current = instance)}
+          onlyRenderVisibleElements={nodes.length > VIRTUALIZE_ABOVE}
           minZoom={0.1}
           maxZoom={2}
           nodesDraggable={false}
@@ -317,7 +362,12 @@ export function Architecture() {
           <Controls showInteractive={false} position="bottom-right" />
         </ReactFlow>
         <div className="pointer-events-none absolute bottom-3 left-3 max-w-[min(560px,calc(100%-5rem))] rounded-md border border-line bg-bg px-3 py-2 text-[13px]" role="status">
-          {selected ? (
+          {matching === 0 ? (
+            <span>
+              No skill or file name contains “{query.trim()}”.{' '}
+              <span className="text-muted">Press Escape in the filter to clear it.</span>
+            </span>
+          ) : selected ? (
             <>
               <span className="font-medium">{selected.kind}</span>
               <span className="text-muted"> — {selected.evidence}</span>

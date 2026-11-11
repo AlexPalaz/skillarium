@@ -206,6 +206,37 @@ test('architecture graph shows real structure, filters, and navigates', async ({
   await expect(page).toHaveURL(url('skills/code-review/'));
 });
 
+test('the architecture graph can be filtered by skill or file name', async ({ page }) => {
+  await page.goto(url('architecture/'));
+  const graph = page.getByTestId('graph');
+  const nodes = graph.locator('.react-flow__node');
+  const filter = page.getByRole('searchbox', { name: 'Filter the graph' });
+  const shown = page.getByRole('status', { name: 'Skills shown' });
+  await expect(nodes).toHaveCount(17);
+  await expect(shown).toHaveText('5 skills');
+
+  // By skill name: the skill stays whole, the others go.
+  await filter.fill('pdf');
+  await expect(nodes).toHaveCount(6); // pdf-processing and its 5 files
+  await expect(shown).toHaveText('1 of 5 skills');
+  await expect(nodes.filter({ hasText: 'code-review' })).toHaveCount(0);
+  await expect(nodes.filter({ hasText: 'pdf-processing' })).toBeInViewport(); // the view follows
+
+  // By file name: every skill that has such a file.
+  await filter.fill('.sh');
+  await expect(shown).toHaveText('2 of 5 skills');
+  await expect(nodes.filter({ hasText: 'release-notes' })).toBeVisible(); // collect_commits.sh
+  await expect(nodes.filter({ hasText: 'database-migration' })).toBeVisible(); // check_migration.sh
+
+  // Nothing matches: say so, and Escape brings everything back.
+  await filter.fill('kubernetes');
+  await expect(nodes).toHaveCount(0);
+  await expect(graph.getByText('No skill or file name contains “kubernetes”.')).toBeVisible();
+  await filter.press('Escape');
+  await expect(filter).toHaveValue('');
+  await expect(nodes).toHaveCount(17);
+});
+
 test('the dark theme is the default; the toggle switches and is remembered', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' }); // the default does not follow the system
   await page.goto(url());

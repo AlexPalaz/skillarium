@@ -9,6 +9,7 @@ const site = path.join(root, 'e2e/.tmp/site');
 export const STATIC_URL = 'http://127.0.0.1:4611/demo/';
 export const HOSTILE_URL = 'http://127.0.0.1:4612/';
 export const EMPTY_URL = 'http://127.0.0.1:4613/';
+export const LARGE_URL = 'http://127.0.0.1:4614/';
 
 // Requires `pnpm build` first: the tests drive the built CLI and viewer.
 export default defineConfig({
@@ -30,6 +31,12 @@ export default defineConfig({
       // Runs against a scratch copy, because the live-reload test edits files.
       command: `node e2e/prepare.mjs && ${cli} dev --root e2e/.tmp/hostile --port 4612 --no-open`,
       url: `${HOSTILE_URL}data/catalog.json`,
+      reuseExistingServer: false,
+    },
+    {
+      // A generated catalog of 153 skills, for what only shows at scale.
+      command: `node scripts/make-playground.mjs 150 e2e/.tmp/large && ${cli} dev --root e2e/.tmp/large --port 4614 --no-open`,
+      url: `${LARGE_URL}data/catalog.json`,
       reuseExistingServer: false,
     },
     {
