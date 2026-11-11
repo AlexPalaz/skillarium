@@ -44,3 +44,45 @@ test('only the nodes on screen are rendered once there are more than a hundred',
   await page.getByRole('button', { name: /fit view/i }).click();
   await expect.poll(() => nodes.count()).toBe(all);
 });
+
+test('the sidebar can show only the skills with errors or with warnings', async ({ page, request }) => {
+  // Work the expected numbers out from the catalog itself.
+  const catalog = (await (await request.get(`${LARGE_URL}data/catalog.json`)).json()) as {
+    skills: { name: string; diagnostics: { severity: string }[] }[];
+  };
+  const withSeverity = (severity: string) =>
+    catalog.skills.filter((skill) => skill.diagnostics.some((d) => d.severity === severity));
+  const errors = withSeverity('error');
+  const warnings = withSeverity('warning');
+  expect(errors.length).toBeGreaterThan(0);
+  expect(warnings.length).toBeGreaterThan(0);
+
+  await page.goto(LARGE_URL);
+  const nav = page.getByRole('navigation', { name: 'Skills' });
+  const status = page.getByRole('group', { name: 'Filter skills by status' });
+  await expect(nav.getByRole('link')).toHaveCount(153);
+  await expect(status.getByRole('button', { name: /^All/ })).toHaveAttribute('aria-pressed', 'true');
+
+  // Errors: exactly the skills with an error, each marked as such; empty groups disappear.
+  await status.getByRole('button', { name: `Errors ${errors.length}` }).click();
+  await expect(nav.getByRole('link')).toHaveCount(errors.length);
+  await expect(nav.getByLabel('Has errors')).toHaveCount(errors.length);
+  expect(await nav.getByRole('button').count()).toBeLessThanOrEqual(3);
+
+  // Warnings: a different set, including the skills with a broken link.
+  await status.getByRole('button', { name: `Warnings ${warnings.length}` }).click();
+  await expect(nav.getByRole('link')).toHaveCount(warnings.length);
+  await expect(nav.getByRole('link', { name: 'dashboard-triage' })).toBeVisible();
+
+  // The status filter also narrows search results.
+  const search = page.getByRole('searchbox', { name: 'Search skills' });
+  await search.fill('triage');
+  const results = page.getByRole('region', { name: 'Search results' });
+  await expect(results.getByRole('link', { name: /^dashboard-triage/ })).toBeVisible();
+  const narrowed = await results.locator('a[aria-current], a[href*="/skills/"]').count();
+  await status.getByRole('button', { name: /^All/ }).click();
+  await expect.poll(() => results.locator('a[aria-current], a[href*="/skills/"]').count()).toBeGreaterThan(narrowed);
+
+  await search.fill('');
+  await expect(nav.getByRole('link')).toHaveCount(153);
+});

@@ -29,6 +29,12 @@ function SeverityDot({ skill }: { skill: SkillDefinition }) {
   );
 }
 
+type Status = 'all' | 'error' | 'warning';
+
+function hasSeverity(skill: SkillDefinition, severity: 'error' | 'warning'): boolean {
+  return skill.diagnostics.some((diagnostic) => diagnostic.severity === severity);
+}
+
 const ITEM =
   'nav-current flex items-center gap-2 rounded-sm px-2.5 py-1.5 text-sm text-muted transition-colors hover:bg-sunken hover:text-fg aria-[current=page]:bg-accent-soft aria-[current=page]:font-medium aria-[current=page]:text-fg';
 
@@ -41,7 +47,22 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const listRef = useRef<HTMLDivElement>(null);
 
   const search = useMemo(() => createSearch(catalog), [catalog]);
-  const hits = useMemo(() => search.search(query), [search, query]);
+  // Show every skill, or only those with an error, or only those with a warning.
+  const [status, setStatus] = useState<Status>('all');
+  const counts = useMemo(
+    () => ({
+      error: catalog.skills.filter((skill) => hasSeverity(skill, 'error')).length,
+      warning: catalog.skills.filter((skill) => hasSeverity(skill, 'warning')).length,
+    }),
+    [catalog],
+  );
+  // A filter whose skills have all been fixed falls back to showing everything.
+  const active: Status = status !== 'all' && counts[status] === 0 ? 'all' : status;
+  const passes = (skill: SkillDefinition) => active === 'all' || hasSeverity(skill, active);
+  const hits = useMemo(
+    () => search.search(query).filter((hit) => active === 'all' || hasSeverity(hit.skill, active)),
+    [search, query, active],
+  );
   const searching = query.trim() !== '';
 
   // "/" or Ctrl/Cmd+K focuses the search field from anywhere.
@@ -137,6 +158,37 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             </kbd>
           )}
         </div>
+        {(counts.error > 0 || counts.warning > 0) && (
+          <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label="Filter skills by status">
+            {(
+              [
+                ['all', 'All', catalog.skills.length],
+                ['error', 'Errors', counts.error],
+                ['warning', 'Warnings', counts.warning],
+              ] as const
+            ).map(
+              ([value, label, count]) =>
+                count > 0 && (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={active === value}
+                    onClick={() => setStatus(value)}
+                    className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[13px] font-medium transition-colors ${
+                      active === value
+                        ? 'border-line-strong bg-accent-soft text-fg'
+                        : 'border-line text-muted hover:border-line-strong hover:text-fg'
+                    }`}
+                  >
+                    {value !== 'all' && (
+                      <span className={`h-1.5 w-1.5 rounded-full ${value === 'error' ? 'bg-danger' : 'bg-warn'}`} aria-hidden="true" />
+                    )}
+                    {label} <span className="tabular-nums text-faint">{count}</span>
+                  </button>
+                ),
+            )}
+          </div>
+        )}
       </div>
 
       <div ref={listRef} onKeyDown={onListKey} className="scroll-thin min-h-0 flex-1 overflow-y-auto p-2">
@@ -193,7 +245,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         ) : (
           <nav aria-label="Skills">
             {catalog.sources.map((source) => {
-              const skills = catalog.skills.filter((s) => s.sourceId === source.id);
+              const skills = catalog.skills.filter((s) => s.sourceId === source.id && passes(s));
+              if (skills.length === 0 && active !== 'all') return null;
               const open = !closed.has(source.id);
               return (
                 <div key={source.id} className="mb-1">

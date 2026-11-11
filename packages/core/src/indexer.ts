@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import ignore from 'ignore';
-import { buildGraph, type GraphDocument } from './graph.js';
+import { buildGraph, linkTargets, resolveRelative, type GraphDocument } from './graph.js';
 import {
   CATALOG_SCHEMA_VERSION,
   type Catalog,
@@ -126,6 +126,73 @@ function assignIds(drafts: Draft[]): string[] {
 }
 
 /** Discovery and file collection may report the same entry; keep one. */
+async function exists(file: string): Promise<boolean> {
+  try {
+    await fs.access(file);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Markdown with fenced blocks and inline code removed: links inside code are examples. */
+function withoutCode(markdown: string): string {
+  return markdown.replace(/^\s{0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\s{0,3}\1[^\n]*$/gm, '').replace(/`[^`\n]*`/g, '');
+}
+
+/**
+ * Add a `broken-link` warning for every relative Markdown link or image that
+ * leads to no file: a skill that sends its reader to a file that is not there.
+ *
+ * A link is fine when it reaches an indexed file, or anything else that
+ * exists inside the project (a folder, an ignored or unpublished file).
+ * Links with a scheme, anchors and absolute paths are not checked, and a
+ * link that leaves the project is not followed: nothing outside the project
+ * root is ever looked at.
+ */
+async function reportBrokenLinks(
+  projectRoot: string,
+  skills: SkillDefinition[],
+  documents: GraphDocument[],
+): Promise<void> {
+  const byId = new Map(skills.map((skill) => [skill.id, skill]));
+  for (const doc of documents) {
+    const skill = byId.get(doc.skillId);
+    if (!skill) continue;
+    const known = new Set([SKILL_FILE, '', ...skill.resources.map((r) => r.path)]);
+    const docDir = doc.path.includes('/') ? doc.path.slice(0, doc.path.lastIndexOf('/')) : '';
+    const reported = new Set<string>();
+
+    for (const target of linkTargets(withoutCode(doc.text))) {
+      if (target.startsWith('/') || reported.has(target)) continue;
+      // Relative to the document, or to the skill root (the specification allows both).
+      const candidates = [resolveRelative(docDir, target), resolveRelative('', target)];
+      if (candidates.some((candidate) => known.has(candidate))) continue;
+
+      let found = false;
+      let checked = false;
+      for (const candidate of candidates) {
+        const projectPath = resolveRelative(skill.sourcePath, candidate);
+        if (projectPath.startsWith('../')) continue; // leaves the project: not ours to look at
+        checked = true;
+        if (await exists(path.join(projectRoot, ...projectPath.split('/')))) {
+          found = true;
+          break;
+        }
+      }
+      if (found || !checked) continue;
+
+      reported.add(target);
+      skill.diagnostics.push({
+        severity: 'warning',
+        code: 'broken-link',
+        message: `${doc.path} links to \`${target}\`, which does not exist.`,
+        file: doc.path,
+      });
+    }
+  }
+}
+
 function dedupe(diagnostics: SkillDiagnostic[]): SkillDiagnostic[] {
   const seen = new Set<string>();
   return diagnostics.filter((d) => {
@@ -287,6 +354,8 @@ export async function indexProject(options: IndexOptions): Promise<IndexResult> 
       diagnostics: [...draft.diagnostics, ...collected.diagnostics],
     });
   }
+
+  await reportBrokenLinks(projectRoot, skills, documents);
 
   const project: ProjectInfo = {
     title: options.project?.title?.trim() || path.basename(projectRoot) || 'Agent Skills',

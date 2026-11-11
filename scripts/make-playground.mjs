@@ -121,7 +121,7 @@ for (const [index, skill] of skills.entries()) {
   }
 
   // Deliberate problems in a few skills, to see how they are reported.
-  const flaw = index % 37 === 5 ? 'no-description' : index % 41 === 7 ? 'bad-yaml' : index % 43 === 9 ? 'loose-yaml' : index % 47 === 11 ? 'name-mismatch' : null;
+  const flaw = index % 37 === 5 ? 'no-description' : index % 41 === 7 ? 'bad-yaml' : index % 43 === 9 ? 'loose-yaml' : index % 47 === 11 ? 'name-mismatch' : index % 53 === 13 ? 'broken-link' : null;
 
   const description = `${verb[0].toUpperCase()}${verb.slice(1)}s the ${topic.replace(/-/g, ' ')} for a change and reports what it found. Use when the user asks to ${verb} a ${topic.replace(/-/g, ' ')}, or when a task touches ${skill.domain} ${topic.replace(/-/g, ' ')} work${chance(0.3) ? ', including follow-ups after an incident, a failed check or a review comment' : ''}.`;
   const front = [`name: ${flaw === 'name-mismatch' ? `${name}-old` : name}`];
@@ -141,7 +141,12 @@ for (const [index, skill] of skills.entries()) {
     .filter((file) => !file.startsWith('assets/'))
     .map((file, i) => (file.startsWith('scripts/') ? `${i + 1}. Run \`${file}\` and read its output.` : `${i + 1}. Follow [${path.posix.basename(file, '.md')}](${file}).`))
     .join('\n');
-  const body = `# ${name}\n\n${sentence(topic)} ${sentence(topic)}\n\n## When to use\n\n- The user asks to ${verb} a ${topic.replace(/-/g, ' ')}.\n- A change touches ${skill.domain} code and nobody has looked at the ${topic.replace(/-/g, ' ')}.\n\n## Steps\n\n${steps || '1. Read the request twice.\n2. Answer in three sentences or fewer.'}\n\n## Output\n\n\`\`\`json\n{ "skill": "${name}", "status": "ok", "findings": [] }\n\`\`\`\n\n- [x] State what was checked\n- [ ] List what was not checked\n${resources.includes('assets/diagram.png') ? '\n![Flow](assets/diagram.png)\n' : ''}${cross}`;
+  // A link and an image that lead nowhere: the file was renamed or never added.
+  const dangling =
+    flaw === 'broken-link'
+      ? `\n\nBefore anything else, read [the escalation policy](references/escalation-policy.md).\n\n![Decision tree](assets/decision-tree.png)`
+      : '';
+  const body = `# ${name}\n\n${sentence(topic)} ${sentence(topic)}${dangling}\n\n## When to use\n\n- The user asks to ${verb} a ${topic.replace(/-/g, ' ')}.\n- A change touches ${skill.domain} code and nobody has looked at the ${topic.replace(/-/g, ' ')}.\n\n## Steps\n\n${steps || '1. Read the request twice.\n2. Answer in three sentences or fewer.'}\n\n## Output\n\n\`\`\`json\n{ "skill": "${name}", "status": "ok", "findings": [] }\n\`\`\`\n\n- [x] State what was checked\n- [ ] List what was not checked\n${resources.includes('assets/diagram.png') ? '\n![Flow](assets/diagram.png)\n' : ''}${cross}`;
   await write(`${dir}/SKILL.md`, flaw === 'no-description' && chance(0.5) ? body : `---\n${front.join('\n')}\n---\n\n${body}`);
   files += resources.length + 1;
 }
