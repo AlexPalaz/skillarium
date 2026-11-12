@@ -35,7 +35,7 @@ npx skillarium build    # generate a static documentation site
 
 No configuration, no account, no API key, no changes to your skills.
 
-> **Status:** early (`0.1.0`), not yet published to npm. Until it is, use it [from source](#from-source).
+> **Status:** early (`0.1.0`). `npx` always runs the latest release; to pin a version for a team or for CI, add it to the project with `npm install --save-dev skillarium`.
 
 ## Why
 

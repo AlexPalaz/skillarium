@@ -10,7 +10,23 @@ for (const required of ['dist/cli.js', 'dist/index.js', 'dist/index.d.ts', 'web/
     process.exit(1);
   }
 }
-for (const file of ['README.md', 'LICENSE']) {
-  const source = path.resolve(pkg, '../..', file);
-  if (fs.existsSync(source)) fs.copyFileSync(source, path.join(pkg, file));
-}
+fs.copyFileSync(path.resolve(pkg, '../..', 'LICENSE'), path.join(pkg, 'LICENSE'));
+
+// The README is written for the repository, where `docs/…` and `LICENSE` are
+// files next to it. On npmjs.com they are not, so point them at GitHub.
+const { repository } = JSON.parse(fs.readFileSync(path.join(pkg, 'package.json'), 'utf8'));
+const repo = repository.url.replace(/^git\+/, '').replace(/\.git$/, '');
+const raw = repo.replace('https://github.com/', 'https://raw.githubusercontent.com/');
+const isRelative = (target) => !/^([a-z][a-z0-9+.-]*:|#|\/)/i.test(target);
+const readme = fs
+  .readFileSync(path.resolve(pkg, '../..', 'README.md'), 'utf8')
+  .replace(/(<img\b[^>]*?\bsrc=")([^"]+)(")/g, (m, a, target, b) =>
+    isRelative(target) ? `${a}${raw}/main/${target}${b}` : m,
+  )
+  .replace(/(<a\b[^>]*?\bhref=")([^"]+)(")/g, (m, a, target, b) =>
+    isRelative(target) ? `${a}${repo}/blob/main/${target}${b}` : m,
+  )
+  .replace(/(!?)\[([^\]]*)\]\(([^)\s]+)\)/g, (m, bang, text, target) =>
+    isRelative(target) ? `${bang}[${text}](${bang ? raw : repo + '/blob'}/main/${target})` : m,
+  );
+fs.writeFileSync(path.join(pkg, 'README.md'), readme);

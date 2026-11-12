@@ -6,8 +6,30 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-12
+
+Initial version, and the first one published to npm.
+
 ### Added
 
+- Automatic discovery of Agent Skills in well-known and configured locations,
+  with nested skills, de-duplication, ignore rules and safe symlink handling.
+- `SKILL.md` parsing and validation against the Agent Skills specification,
+  reported as diagnostics; malformed skills remain visible.
+- Viewer: skill explorer, metadata, rendered GitHub-flavored Markdown with
+  syntax highlighting and a table of contents, resource browser with file
+  previews, client-side full-text search, dark (default) and light themes, responsive
+  layout.
+- Architecture view: a graph of skills and files limited to filesystem
+  containment and explicit references.
+- A visual system of its own: forest and lime palette, Host Grotesk and
+  JetBrains Mono (bundled, no font service), sharp radii.
+- `skillarium dev` with file watching and live reload.
+- `skillarium build` static site generation with a page per route and
+  configurable base path; `skillarium preview` to serve it.
+- `skillarium list` and `skillarium inspect`, with `--json`.
+- Optional typed configuration (`skillarium.config.ts`) and
+  `.skillariumignore`.
 - `skillarium check`: a command for CI that reports errors and warnings and
   sets the exit code without writing files or starting a server. It fails on
   errors, on warnings too with `--fail-on warning`, and when no skill is
@@ -37,14 +59,9 @@ All notable changes to this project are documented here. The format follows
   results.
 - `scripts/make-playground.mjs` (`pnpm playground`): generates a large,
   deterministic project for trying Skillarium at scale.
-
-### Changed
-
-- New logo: a diamond above an open book replaces the ring, in the viewer's
-  header, the favicon and the README.
 - Frontmatter that is invalid YAML only because a plain value contains `: `
-  or ` #` is now read line by line and reported as a warning
-  (`lenient-yaml`) instead of an error, as agent tools accept it.
+  or ` #` is read line by line and reported as a warning (`lenient-yaml`)
+  instead of an error, as agent tools accept it.
 - YAML error messages give the line number in `SKILL.md`, not inside the
   frontmatter block.
 - Architecture view: the layout widens with the size of the catalog, and
@@ -52,30 +69,5 @@ All notable changes to this project are documented here. The format follows
 - Architecture view: when only skills are shown, and in large catalogs also
   with files shown, linked skills are arranged left to right along their
   links, in separate groups, and skills without links sit underneath, so
-  lines no longer cross unrelated nodes. In large catalogs a skill's files
-  are listed under it, like a folder.
-
-## [0.1.0] - 2026-11-11
-
-Initial version. Not yet published to npm.
-
-### Added
-
-- Automatic discovery of Agent Skills in well-known and configured locations,
-  with nested skills, de-duplication, ignore rules and safe symlink handling.
-- `SKILL.md` parsing and validation against the Agent Skills specification,
-  reported as diagnostics; malformed skills remain visible.
-- Viewer: skill explorer, metadata, rendered GitHub-flavored Markdown with
-  syntax highlighting and a table of contents, resource browser with file
-  previews, client-side full-text search, dark (default) and light themes, responsive
-  layout.
-- Architecture view: a graph of skills and files limited to filesystem
-  containment and explicit references.
-- A visual system of its own: forest and lime palette, Host Grotesk and
-  JetBrains Mono (bundled, no font service), sharp radii.
-- `skillarium dev` with file watching and live reload.
-- `skillarium build` static site generation with a page per route and
-  configurable base path; `skillarium preview` to serve it.
-- `skillarium list` and `skillarium inspect`, with `--json`.
-- Optional typed configuration (`skillarium.config.ts`) and
-  `.skillariumignore`.
+  lines do not cross unrelated nodes. In large catalogs a skill's files are
+  listed under it, like a folder.
