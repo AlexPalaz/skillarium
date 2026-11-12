@@ -159,6 +159,104 @@ describe('discovery', () => {
   });
 });
 
+describe('skills outside the default locations', () => {
+  const note = (r: Awaited<ReturnType<typeof indexProject>>) =>
+    r.catalog.diagnostics.filter((d) => d.code === 'searched-whole-project');
+
+  it('searches the whole project when the default locations hold no skill, and says so', async () => {
+    const root = await project({
+      'lead-research': { 'SKILL.md': skillMd('lead-research'), scripts: { 'run.py': 'print(1)\n' } },
+      engineering: { hivemind: { 'SKILL.md': skillMd('hivemind') } },
+      plugins: { deck: { skills: { 'deck-context': { 'SKILL.md': skillMd('deck-context') } } } },
+      docs: { 'guide.md': '# Not a skill\n' },
+    });
+    const result = await indexProject({ root });
+    expect(result.catalog.skills.map((s) => [s.name, s.sourcePath])).toEqual([
+      ['deck-context', 'plugins/deck/skills/deck-context'],
+      ['hivemind', 'engineering/hivemind'],
+      ['lead-research', 'lead-research'],
+    ]);
+    expect(result.catalog.skills[2]!.resources.map((r) => r.path)).toEqual(['scripts/run.py']);
+    expect(result.catalog.searched).toContain('.');
+    expect(note(result)).toMatchObject([{ severity: 'info' }]);
+  });
+
+  it('treats a SKILL.md in the project root as a skill', async () => {
+    const root = await project({ 'SKILL.md': skillMd('humanizer'), 'README.md': '# Humanizer\n' });
+    const result = await indexProject({ root });
+    expect(result.catalog.skills.map((s) => [s.name, s.sourcePath])).toEqual([['humanizer', '.']]);
+    expect(note(result)).toHaveLength(1);
+  });
+
+  it('searches nothing else once a default location holds a skill', async () => {
+    const root = await project({
+      skills: { pdf: { 'SKILL.md': skillMd('pdf') } },
+      engineering: { hivemind: { 'SKILL.md': skillMd('hivemind') } },
+    });
+    const result = await indexProject({ root });
+    expect(names(result)).toEqual(['pdf']);
+    expect(result.catalog.searched).not.toContain('.');
+    expect(note(result)).toEqual([]);
+  });
+
+  it('does not fall back when skills are configured', async () => {
+    const root = await project({ engineering: { hivemind: { 'SKILL.md': skillMd('hivemind') } }, mine: {} });
+    const result = await indexProject({ root, skills: ['mine'] });
+    expect(result.catalog.skills).toEqual([]);
+    expect(result.catalog.searched).toEqual(['mine']);
+    expect(note(result)).toEqual([]);
+  });
+
+  it('skips hidden folders, node_modules, ignored folders and what the root .gitignore excludes', async () => {
+    const root = await project({
+      '.gitignore': 'dist/\n/vendor\n',
+      '.skillariumignore': 'drafts/\n',
+      kept: { 'SKILL.md': skillMd('kept') },
+      dist: { copy: { 'SKILL.md': skillMd('built') } },
+      vendor: { lib: { 'SKILL.md': skillMd('vendored') } },
+      drafts: { wip: { 'SKILL.md': skillMd('wip') } },
+      node_modules: { pkg: { 'SKILL.md': skillMd('dependency') } },
+      '.cache': { tmp: { 'SKILL.md': skillMd('hidden') } },
+      // A .gitignore further down is not read.
+      nested: { '.gitignore': 'inner/\n', inner: { 'SKILL.md': skillMd('inner') } },
+    });
+    expect(names(await indexProject({ root })).sort()).toEqual(['inner', 'kept']);
+  });
+
+  it('uses .gitignore only to decide where to look, not which files a skill has', async () => {
+    const root = await project({
+      '.gitignore': '*.log\n',
+      tool: { 'SKILL.md': skillMd('tool'), 'run.log': 'kept\n' },
+    });
+    const result = await indexProject({ root });
+    expect(result.catalog.skills[0]!.resources.map((r) => r.path)).toEqual(['run.log']);
+    // In a default location the root .gitignore plays no part at all.
+    const usual = await project({ '.gitignore': 'skills/\n', skills: { pdf: { 'SKILL.md': skillMd('pdf') } } });
+    expect(names(await indexProject({ root: usual }))).toEqual(['pdf']);
+  });
+
+  it('still finds nothing, and adds no note, in a project without any SKILL.md', async () => {
+    const root = await project({ src: { 'app.ts': 'export {};\n' } });
+    const result = await indexProject({ root });
+    expect(result.catalog.skills).toEqual([]);
+    expect(result.catalog.searched).toContain('.');
+    expect(note(result)).toEqual([]);
+  });
+
+  it('watches the skills that were found, not the whole project', async () => {
+    const root = await project({ engineering: { hivemind: { 'SKILL.md': skillMd('hivemind') } } });
+    const result = await indexProject({ root });
+    expect(result.watchPaths).toEqual([path.join(root, 'engineering/hivemind')]);
+  });
+
+  it('gives the same catalog for the same project', async () => {
+    const tree: Tree = { b: { 'SKILL.md': skillMd('b') }, a: { deep: { 'SKILL.md': skillMd('a') } } };
+    const one = await indexProject({ root: await project(tree) });
+    const two = await indexProject({ root: await project(tree) });
+    expect(JSON.stringify(one.catalog.skills)).toBe(JSON.stringify(two.catalog.skills));
+  });
+});
+
 describe('resources', () => {
   it('classifies files by convention and content', async () => {
     const root = await project({

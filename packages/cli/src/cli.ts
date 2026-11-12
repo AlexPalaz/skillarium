@@ -223,6 +223,8 @@ cli
       );
     }
     console.log(pc.dim(`\n${summary(catalog)}`));
+    const wide = catalog.diagnostics.find((d) => d.code === 'searched-whole-project');
+    if (wide) console.log(pc.dim(wide.message));
   });
 
 function findSkill(catalog: Catalog, query: string): SkillDefinition {

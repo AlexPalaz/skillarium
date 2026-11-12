@@ -227,7 +227,8 @@ export async function startDevServer(options: DevServerOptions): Promise<DevServ
     const shallow = new Set<string>([project.root]);
     for (const searched of index.catalog.searched) {
       const abs = path.resolve(project.root, searched);
-      if (deep.includes(abs)) continue;
+      // The project root itself (searched when the usual locations are empty) is already in `shallow`.
+      if (deep.includes(abs) || abs === project.root) continue;
       let dir = path.dirname(abs);
       while (!fs.existsSync(dir) && isInside(project.root, dir) && dir !== project.root) dir = path.dirname(dir);
       if (fs.existsSync(dir)) shallow.add(dir);

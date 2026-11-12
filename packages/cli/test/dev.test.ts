@@ -351,6 +351,20 @@ describe('command line', () => {
       expect(json.report).toEqual({ ok: false, skills: 0, errors: 0, warnings: 0, diagnostics: [] });
     });
 
+    it('checks skills kept outside the default locations, without printing the note about it', async () => {
+      const root = await makeProject({ engineering: { hivemind: { 'SKILL.md': skillMd('hivemind') } } });
+      const checked = await cli(['check', '--root', root]);
+      expect(checked.code).toBe(0);
+      expect(checked.stdout).toContain('1 skill');
+      expect(checked.stdout).not.toContain('whole project');
+      expect((await report(['--root', root])).report).toEqual({ ok: true, skills: 1, errors: 0, warnings: 0, diagnostics: [] });
+
+      const listed = await cli(['list', '--root', root]);
+      expect(listed.stdout).toContain('engineering/hivemind');
+      expect(listed.stdout).toContain('No skill was found in the default locations, so the whole project was searched.');
+      expect((await cli(['list', '--root', await makeProject(SAMPLE)])).stdout).not.toContain('whole project');
+    });
+
     it('reports counts and problems as JSON, project-level ones first', async () => {
       const root = await makeProject({
         'skillarium.config.json': JSON.stringify({ skills: ['./missing', './skills'] }),

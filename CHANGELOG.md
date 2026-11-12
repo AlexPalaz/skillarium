@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-12
+
+### Added
+
+- Skills kept outside the usual locations are found without configuration:
+  when `skills` is not set and no skill is in a default location, the whole
+  project is searched for `SKILL.md`, leaving out what the root `.gitignore`
+  excludes. A `SKILL.md` in the project root makes the project a skill. The
+  note `searched-whole-project` says that this happened.
+
 ## [0.2.0] - 2026-11-12
 
 ### Added

@@ -20,7 +20,7 @@ Instructions found inside a skill (“ignore previous instructions”, “run th
 
 **Reads stay inside the skill roots.**
 
-- Only the configured skill roots are walked; the rest of the project is not read.
+- Only the skill roots are walked: the folders listed under `skills`, or the default locations. The rest of the project is not read, with one exception: when `skills` is not set and the default locations hold no skill, the whole project is searched for `SKILL.md` files, under the rules below and leaving out what the root `.gitignore` excludes. Only the folders in which a `SKILL.md` is found are then indexed.
 - Symbolic links are resolved, and any link whose target is outside its skill root is skipped and reported. Link cycles are detected.
 - Hidden files and directories (`.env`, `.git`, …) and `node_modules` are skipped.
 - Files that look like keys or certificates (`*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.jks`, `*.keystore`, `id_rsa`, …) are excluded.
