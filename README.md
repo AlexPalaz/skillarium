@@ -37,7 +37,7 @@ npx skillarium build    # generate a static documentation site
 
 No configuration, no account, no API key, no changes to your skills.
 
-> **Status:** early (`0.2.0`). `npx` always runs the latest release; to pin a version for a team or for CI, add it to the project with `npm install --save-dev skillarium`.
+> **Status:** early (`0.3.0`). `npx` always runs the latest release; to pin a version for a team or for CI, add it to the project with `npm install --save-dev skillarium`.
 
 ## Why
 
@@ -125,6 +125,8 @@ Without configuration, Skillarium searches these directories for folders that co
 .agents/skills/   .claude/skills/   .codex/skills/   .cursor/skills/
 .gemini/skills/   .github/skills/   .opencode/skills/   skills/
 ```
+
+If none of them holds a skill, Skillarium searches the whole project instead, so a repository that keeps its skills elsewhere — in folders at the top level, under `plugins/<name>/skills/`, or as a single `SKILL.md` in the root — works without configuration. That search also leaves out what the project's `.gitignore` excludes, and Skillarium says that it took place. When the usual locations do hold skills, nothing else is read: list the other folders under `skills` in the [configuration](#configuration) to include them.
 
 Hidden files and folders, `node_modules`, and files that look like keys or certificates are skipped. Add a `.skillariumignore` (gitignore syntax) to exclude more.
 

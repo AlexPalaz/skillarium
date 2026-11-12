@@ -43,6 +43,20 @@ Unknown options are rejected with an error, so typos do not pass silently.
 .gemini/skills   .github/skills   .opencode/skills   skills
 ```
 
+### When the default locations hold no skill
+
+If `skills` is not set and no skill is found in the default locations, the whole project is searched for folders that contain a `SKILL.md`, with the same rules and one more:
+
+- hidden folders, `node_modules` and whatever `.skillariumignore` and `ignore` exclude are skipped, as everywhere;
+- folders excluded by the `.gitignore` in the project root are skipped too, so that skills inside build output or downloaded dependencies are not picked up. Only that one file is read, not `.gitignore` files in subfolders, and it only limits where skills are looked for: the files of a skill that was found are listed as usual;
+- a `SKILL.md` in the project root makes the project itself a skill.
+
+The catalog then carries the note `searched-whole-project`, shown in the viewer and by `skillarium list`.
+
+This is a fallback, not a second pass: as soon as one skill is found in a default location, nothing else is searched. A project with skills both in `skills/` and somewhere else needs `skills: ['skills', 'somewhere/else']`. Setting `skills` always turns the fallback off.
+
+`skillarium dev` watches the skills that were found and the top level of the project. A skill added later in a new folder further down appears after a restart.
+
 ## Command-line overrides
 
 Flags take precedence over the config file.

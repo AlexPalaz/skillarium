@@ -149,6 +149,7 @@ These are not attached to one skill. `check` lists them first.
 | `symlink-escape` | warning | A symbolic link points outside its skill root and was skipped. |
 | `unreadable-directory` | warning | A folder could not be read. |
 | `unreadable-entry` | warning | A file or folder could not be accessed. |
+| `searched-whole-project` | note | No skill was found in the [default locations](configuration.md#default-skill-locations), so the whole project was searched instead. |
 
 ## Leaving something out
 

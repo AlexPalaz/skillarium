@@ -483,10 +483,14 @@ export async function indexProject(options: IndexOptions): Promise<IndexResult> 
   const seenRealDirs = new Set<string>();
   const seenSourceIds = new Set<string>();
 
-  for (const spec of rootSpecs) {
+  /**
+   * Index the skills under one root. With `wholeProject` the root is the
+   * project itself, searched because the usual locations held nothing.
+   */
+  async function scanRoot(spec: string, scanCtx: ScanContext, wholeProject: boolean): Promise<void> {
     const abs = path.resolve(projectRoot, spec);
     const rel = toPosix(path.relative(projectRoot, abs)) || '.';
-    if (searched.includes(rel)) continue;
+    if (searched.includes(rel)) return;
     searched.push(rel);
 
     const exists = await fs.stat(abs).then((s) => s.isDirectory(), () => false);
@@ -499,11 +503,12 @@ export async function indexProject(options: IndexOptions): Promise<IndexResult> 
           file: rel,
         });
       }
-      continue;
+      return;
     }
-    watchPaths.push(abs);
+    // The whole project is not watched: only the skills found in it are.
+    if (!wholeProject) watchPaths.push(abs);
 
-    const discovered = await discoverSkills(ctx, abs);
+    const discovered = await discoverSkills(scanCtx, abs);
     let sourceId = slugify(rel === '.' ? 'project' : rel);
     if (seenSourceIds.has(sourceId)) sourceId = `${sourceId}-${shortHash(rel)}`;
     let added = 0;
@@ -512,6 +517,7 @@ export async function indexProject(options: IndexOptions): Promise<IndexResult> 
       if (seenRealDirs.has(skill.realDir)) continue; // overlapping roots or symlinks
       seenRealDirs.add(skill.realDir);
       added++;
+      if (wholeProject) watchPaths.push(skill.dir);
 
       const directoryName = path.basename(skill.dir);
       const { raw, error } = await readSkillFile(skill.dir);
@@ -544,6 +550,27 @@ export async function indexProject(options: IndexOptions): Promise<IndexResult> 
     if (added > 0) {
       seenSourceIds.add(sourceId);
       sources.push({ id: sourceId, path: rel });
+    }
+  }
+
+  for (const spec of rootSpecs) await scanRoot(spec, ctx, false);
+
+  // Skills kept somewhere else: with no configuration and nothing in the usual
+  // locations, look in the whole project. The root .gitignore narrows where to
+  // look (build output, dependencies), not which files a skill has.
+  if (!explicit && drafts.length === 0) {
+    const gitignore = await fs.readFile(path.join(projectRoot, '.gitignore'), 'utf8').catch(() => '');
+    const whole: ScanContext = {
+      ...ctx,
+      ignore: ignore().add(options.ignore ?? []).add(await readIgnoreFile(projectRoot)).add(gitignore),
+    };
+    await scanRoot('.', whole, true);
+    if (drafts.length > 0) {
+      diagnostics.push({
+        severity: 'info',
+        code: 'searched-whole-project',
+        message: 'No skill was found in the default locations, so the whole project was searched.',
+      });
     }
   }
 
