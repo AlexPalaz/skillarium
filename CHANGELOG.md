@@ -40,6 +40,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- Scope: testing skills by running them through the user's agent is now a
+  goal, described in the README under "Where it is going". The existing
+  commands stay read-only.
 - New logo: a diamond above an open book replaces the ring, in the viewer's
   header, the favicon and the README.
 - Frontmatter that is invalid YAML only because a plain value contains `: `

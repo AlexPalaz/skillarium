@@ -71,7 +71,10 @@ pnpm test:e2e                            # Playwright: user journeys
 - **Skills are untrusted input.** Any change that reads files, renders
   content, builds URLs, or serves data must preserve the guarantees in
   [docs/security.md](docs/security.md). Never execute skill content; never
-  serve a path that is not in the indexer's allowlist.
+  serve a path that is not in the indexer's allowlist. The read-only commands
+  (`dev`, `build`, `preview`, `list`, `inspect`, `check`) stay that way: a
+  skill may be run only by a command whose purpose is to run it, started by
+  the user.
 - **Follow the specification.** Do not make fields mandatory that the
   [Agent Skills specification](https://agentskills.io/specification) leaves
   optional, and do not require changes to existing skills.
@@ -90,9 +93,13 @@ pnpm test:e2e                            # Playwright: user journeys
 
 ## Non-goals
 
-Running skills or agents, skill evaluation, LLM-powered features, embeddings,
-marketplaces, installation or synchronization of skills, authentication, and
-hosted services are out of scope for now.
+A model or API key of Skillarium's own, embeddings, marketplaces, installation
+or synchronization of skills, authentication, and hosted services are out of
+scope for now.
+
+Testing skills by running them through the user's agent is a goal (see
+[Where it is going](README.md#where-it-is-going)). It is built one feature at
+a time; open an issue before starting on a part of it.
 
 ## Pull requests
 
