@@ -24,6 +24,10 @@
 
 Point Skillarium at a project and it turns the `SKILL.md` files and their supporting scripts, references and assets into a searchable, browsable site — locally while you work, or as a static website you can publish.
 
+<p align="center">
+  <img src="docs/assets/skillarium-demo.gif" alt="A tour of Skillarium on a sample project: the overview of all skills, one skill with its instructions and files, search, the errors and warnings found in two skills, and the architecture graph." width="900">
+</p>
+
 ```bash
 npx skillarium dev      # explore your skills in the browser
 npx skillarium build    # generate a static documentation site
