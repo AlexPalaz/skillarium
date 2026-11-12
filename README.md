@@ -37,7 +37,7 @@ npx skillarium build    # generate a static documentation site
 
 No configuration, no account, no API key, no changes to your skills.
 
-> **Status:** early (`0.1.0`). `npx` always runs the latest release; to pin a version for a team or for CI, add it to the project with `npm install --save-dev skillarium`.
+> **Status:** early (`0.2.0`). `npx` always runs the latest release; to pin a version for a team or for CI, add it to the project with `npm install --save-dev skillarium`.
 
 ## Why
 
@@ -99,6 +99,8 @@ npx skillarium check --json              # counts and problems, for scripts
 ```
 
 `check` reads the skills, prints every error and warning with the skill it belongs to, and sets the exit code. An error is a fact — invalid frontmatter, a link to a file that is not there, two different skills with one name — and fails the check; a warning is a likely mistake, such as a script that is named but missing or a file nothing refers to (see [docs/diagnostics.md](docs/diagnostics.md)). It writes no files and starts no server, so it is the command to run on every pull request; `build` is for publishing. A project in which no skill is found fails the check, because in CI that usually means a wrong `--root` or `skills` setting.
+
+In GitHub Actions the same errors and warnings also appear as annotations on the pull request, each on the file it is about. Nothing has to be configured.
 
 ### Commands
 

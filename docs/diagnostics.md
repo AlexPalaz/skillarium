@@ -3,7 +3,8 @@
 Skillarium reports what it finds wrong with a skill as **diagnostics**. They
 appear on the skill's page and on the overview in the viewer, in
 `skillarium inspect`, and in `skillarium check`, which turns them into an exit
-code for CI.
+code for CI and, in GitHub Actions, into
+[annotations on the pull request](deployment.md#annotations-in-github-actions).
 
 A skill with diagnostics is still indexed and shown, so it can be fixed.
 

@@ -20,6 +20,15 @@ function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
 }
 
+/**
+ * Skill content is untrusted, and a file name may hold a line break. Printed as
+ * it is, the rest of the name would start a line of its own, which a CI runner
+ * may take for a command. Show the break instead.
+ */
+function oneLine(text: string): string {
+  return text.replace(/\r/g, '\\r').replace(/\n/g, '\\n');
+}
+
 function countIssues(catalog: Catalog): { errors: number; warnings: number } {
   const all: SkillDiagnostic[] = [...catalog.diagnostics, ...catalog.skills.flatMap((s) => s.diagnostics)];
   return {
@@ -44,7 +53,7 @@ function printDiagnostics(catalog: Catalog): void {
   for (const [where, diagnostic] of rows) {
     if (diagnostic.severity === 'info') continue;
     const tag = diagnostic.severity === 'error' ? pc.red('error') : pc.yellow('warn ');
-    console.error(`  ${tag} ${pc.dim(where)} ${diagnostic.message}`);
+    console.error(`  ${tag} ${pc.dim(oneLine(where))} ${oneLine(diagnostic.message)}`);
   }
 }
 
@@ -260,7 +269,7 @@ cli
 
     console.log(`\n${pc.dim('Files')} (${skill.resources.length})`);
     for (const resource of skill.resources) {
-      console.log(`  ${resource.path} ${pc.dim(`${resource.kind}, ${resource.size} B`)}`);
+      console.log(`  ${oneLine(resource.path)} ${pc.dim(`${resource.kind}, ${resource.size} B`)}`);
     }
     const references = catalog.graph.edges.filter(
       (edge) => edge.kind !== 'contains' && (edge.source === `skill:${skill.id}` || edge.source.startsWith(`file:${skill.id}:`)),
@@ -268,14 +277,14 @@ cli
     if (references.length > 0) {
       console.log(`\n${pc.dim('Explicit references')} (${references.length})`);
       for (const edge of references) {
-        console.log(`  ${edge.target.replace(/^(file:[^:]+:|skill:)/, '')} ${pc.dim(`— ${edge.evidence}`)}`);
+        console.log(`  ${oneLine(edge.target.replace(/^(file:[^:]+:|skill:)/, ''))} ${pc.dim(`— ${oneLine(edge.evidence)}`)}`);
       }
     }
     if (skill.diagnostics.length > 0) {
       console.log(`\n${pc.dim('Diagnostics')}`);
       for (const d of skill.diagnostics) {
         const tag = d.severity === 'error' ? pc.red('error') : d.severity === 'warning' ? pc.yellow('warn ') : pc.dim('note ');
-        console.log(`  ${tag} ${d.message} ${pc.dim(d.code)}`);
+        console.log(`  ${tag} ${oneLine(d.message)} ${pc.dim(d.code)}`);
       }
     }
   });
@@ -311,6 +320,36 @@ function checkDiagnostics(catalog: Catalog): CheckDiagnostic[] {
   return out;
 }
 
+/** The text of a GitHub Actions workflow command, with what would end or split it encoded. */
+function commandData(text: string): string {
+  return text.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+}
+
+/** A property of a workflow command; `:` and `,` separate properties, so they are encoded too. */
+function commandProperty(text: string): string {
+  return commandData(text).replace(/:/g, '%3A').replace(/,/g, '%2C');
+}
+
+/**
+ * The diagnostics as GitHub Actions annotations, one workflow command per line.
+ * A skill's problem is put on its file, by a path from the repository; a
+ * problem of the project has no file.
+ */
+function githubAnnotations(root: string, catalog: Catalog, diagnostics: CheckDiagnostic[]): string[] {
+  const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+  const lines = diagnostics.map((d) => {
+    const properties: string[] = [];
+    if (d.skill !== undefined) {
+      const file = path.relative(workspace, path.resolve(root, d.path, d.file ?? 'SKILL.md')).split(path.sep).join('/');
+      if (!file.startsWith('../') && !path.isAbsolute(file)) properties.push(`file=${commandProperty(file)}`);
+    }
+    properties.push(`title=${commandProperty(d.code)}`);
+    return `::${d.severity} ${properties.join(',')}::${commandData(d.message)}`;
+  });
+  if (catalog.skills.length === 0) lines.push('::error title=no-skills::No Agent Skills found.');
+  return lines;
+}
+
 cli
   .command('check', 'Report problems and set the exit code, without writing anything (for CI)')
   .option('--fail-on <severity>', 'Lowest severity that fails the check: error or warning (default: error)')
@@ -335,12 +374,15 @@ cli
     }
     for (const d of diagnostics) {
       const tag = d.severity === 'error' ? pc.red('error') : pc.yellow('warn ');
-      console.log(`${tag} ${pc.dim(d.path)} ${d.message} ${pc.dim(d.code)}`);
+      console.log(`${tag} ${pc.dim(oneLine(d.path))} ${oneLine(d.message)} ${pc.dim(d.code)}`);
     }
     if (diagnostics.length > 0) console.log();
     if (catalog.skills.length === 0) noSkillsHint(catalog);
     console.log(`${ok ? pc.green('✓') : pc.red('✗')} ${summary(catalog)}`);
     if (!ok && errors === 0 && warnings > 0) console.log(pc.dim('  Warnings fail this check because of --fail-on warning.'));
+    if (process.env.GITHUB_ACTIONS === 'true') {
+      for (const line of githubAnnotations(project.root, catalog, diagnostics)) console.log(line);
+    }
   });
 
 cli.help();
