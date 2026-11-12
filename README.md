@@ -9,11 +9,13 @@
 
 <p align="center">
   <a href="https://github.com/AlexPalaz/skillarium/actions/workflows/ci.yml"><img src="https://github.com/AlexPalaz/skillarium/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+  <a href="https://www.npmjs.com/package/skillarium"><img src="https://img.shields.io/npm/v/skillarium?color=2f6b1f" alt="npm version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2f6b1f" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2020.19-2f6b1f" alt="Node.js 20.19 or newer">
 </p>
 
 <p align="center">
+  <a href="https://alexpalaz.github.io/skillarium/">Live demo</a> ·
   <a href="#usage">Usage</a> ·
   <a href="docs/configuration.md">Configuration</a> ·
   <a href="docs/deployment.md">Deployment</a> ·
