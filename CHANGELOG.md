@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-12
+
+### Added
+
+- `skillarium check` in GitHub Actions: each error and warning is also
+  printed as an annotation, shown on the pull request on the file it is
+  about. It needs no option, and is left out of `check --json`.
+- A live demo of the viewer, built from the example project, linked from the
+  README.
+
+### Fixed
+
+- A file whose name contains a line break, and a diagnostic about it, are
+  printed on one line, with the break shown as `\n`. Before, the rest of the name
+  started a new line of output, which GitHub Actions could read as a
+  workflow command.
+
 ## [0.1.0] - 2026-11-12
 
 Initial version, and the first one published to npm.

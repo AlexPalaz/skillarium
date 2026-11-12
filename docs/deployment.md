@@ -119,7 +119,34 @@ location /skills-docs/ {
 
 ## Build in CI
 
-- `skillarium check` validates the skills without building anything: it exits 1 when a skill has an error (invalid frontmatter, a link to a file that does not exist, two different skills with the same name, …), or also for warnings with `--fail-on warning`. The checks are listed in [diagnostics.md](diagnostics.md). Run it on pull requests.
+- `skillarium check` validates the skills without building anything: it exits 1 when a skill has an error (invalid frontmatter, a link to a file that does not exist, two different skills with the same name, …), or also for warnings with `--fail-on warning`. The checks are listed in [diagnostics.md](diagnostics.md). Run it on pull requests. In GitHub Actions the problems also show up as annotations, see [below](#annotations-in-github-actions).
 - `--strict` makes the build itself fail when a skill has an error, for the job that publishes the site.
 - `skillarium list --json` gives a machine-readable inventory with diagnostics.
 - Output is deterministic: the same skills produce byte-identical files, so a build can be diffed or cached.
+
+### Annotations in GitHub Actions
+
+When `skillarium check` runs in GitHub Actions (the environment variable `GITHUB_ACTIONS` is `true`), it prints each error and warning a second time as a [workflow command](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands), so that GitHub shows it on the pull request and in the run summary:
+
+```text
+::error file=skills/pdf/SKILL.md,title=broken-link::SKILL.md links to `references/guide.md`, which does not exist.
+```
+
+```yaml
+jobs:
+  skills:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npx skillarium check
+```
+
+- The annotation is on the file the problem is about, or on the skill's `SKILL.md` when the problem is about the skill as a whole. It names the file, not a line.
+- Paths are relative to the repository (`GITHUB_WORKSPACE`), so they are right with `--root` too.
+- A problem of the project itself, and a project in which no skill is found, give an annotation without a file.
+- The title is the diagnostic's code. The usual output and the exit code do not change.
+- `check --json` prints no annotations, so its output stays valid JSON.
+- GitHub shows at most 10 error and 10 warning annotations per step; the rest are in the log.

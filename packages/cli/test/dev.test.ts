@@ -176,8 +176,9 @@ describe('shutdown', () => {
 describe('command line', () => {
   const bin = fileURLToPath(new URL('../bin/skillarium.js', import.meta.url));
   const run = promisify(execFile);
-  const cli = (args: string[]) =>
-    run(process.execPath, [bin, ...args], { env: { ...process.env, NO_COLOR: '1' } }).then(
+  // The tests may themselves run in GitHub Actions; what `check` does there is tested by setting it.
+  const cli = (args: string[], env: Record<string, string> = {}) =>
+    run(process.execPath, [bin, ...args], { env: { ...process.env, NO_COLOR: '1', GITHUB_ACTIONS: '', ...env } }).then(
       (out) => ({ code: 0, ...out }),
       (error: { code: number; stdout: string; stderr: string }) => error,
     );
@@ -402,6 +403,85 @@ describe('command line', () => {
       expect(code).toBe(0);
       expect(result).toEqual({ ok: true, skills: 1, errors: 0, warnings: 0, diagnostics: [] });
       expect((await cli(['check', '--root', root])).stdout).not.toContain('excluded');
+    });
+
+    describe('in GitHub Actions', () => {
+      const BROKEN = skillMd('pdf', 'Does pdf. Use for pdf.', 'See [the guide](references/guide.md).');
+      const commands = (stdout: string) => stdout.split('\n').filter((line) => line.startsWith('::'));
+
+      it('prints each error and warning as an annotation on its file, next to the usual output', async () => {
+        const root = await makeProject({
+          skills: { pdf: { 'SKILL.md': BROKEN, scripts: { 'unused.py': '' } }, 'pdf-new': { 'SKILL.md': WARNED } },
+        });
+        const checked = await cli(['check', '--root', root], { GITHUB_ACTIONS: 'true', GITHUB_WORKSPACE: root });
+        expect(commands(checked.stdout).sort()).toEqual([
+          '::error file=skills/pdf/SKILL.md,title=broken-link::SKILL.md links to `references/guide.md`, which does not exist.',
+          expect.stringMatching(/^::warning file=skills\/pdf-new\/SKILL\.md,title=[a-z-]+::/),
+          expect.stringMatching(/^::warning file=skills\/pdf\/scripts\/unused\.py,title=orphan-file::`scripts\/unused\.py` is never referenced/),
+        ]);
+        // The usual output and the exit code are the ones given outside GitHub Actions.
+        const plain = await cli(['check', '--root', root]);
+        expect(checked.code).toBe(plain.code);
+        expect(checked.stdout.split('\n').filter((line) => !line.startsWith('::')).join('\n').trim()).toBe(plain.stdout.trim());
+      });
+
+      it('prints no annotation outside GitHub Actions, and none when there is no problem', async () => {
+        const broken = await makeProject({ skills: { pdf: { 'SKILL.md': BROKEN } } });
+        expect(commands((await cli(['check', '--root', broken])).stdout)).toEqual([]);
+        expect(commands((await cli(['check', '--root', broken], { GITHUB_ACTIONS: 'false' })).stdout)).toEqual([]);
+        const fine = await makeProject({ skills: { pdf: { 'SKILL.md': skillMd('pdf') } } });
+        expect(commands((await cli(['check', '--root', fine], { GITHUB_ACTIONS: 'true' })).stdout)).toEqual([]);
+      });
+
+      it('leaves annotations out of --json', async () => {
+        const root = await makeProject({ skills: { pdf: { 'SKILL.md': BROKEN } } });
+        const result = await cli(['check', '--json', '--root', root], { GITHUB_ACTIONS: 'true', GITHUB_WORKSPACE: root });
+        expect(commands(result.stdout)).toEqual([]);
+        expect((JSON.parse(result.stdout) as Report).errors).toBe(1);
+      });
+
+      it('gives paths from the repository, not from --root', async () => {
+        const repo = await makeProject({ docs: { agents: { skills: { pdf: { 'SKILL.md': BROKEN } } } } });
+        const args = ['check', '--root', path.join(repo, 'docs/agents')];
+        const checked = await cli(args, { GITHUB_ACTIONS: 'true', GITHUB_WORKSPACE: repo });
+        expect(commands(checked.stdout)).toEqual([expect.stringMatching(/^::error file=docs\/agents\/skills\/pdf\/SKILL\.md,/)]);
+      });
+
+      it('annotates a problem of the project, and a project without skills, without a file', async () => {
+        const empty = await makeProject({ 'README.md': '# Nothing here\n' });
+        const none = await cli(['check', '--root', empty], { GITHUB_ACTIONS: 'true', GITHUB_WORKSPACE: empty });
+        expect(none.code).toBe(1);
+        expect(commands(none.stdout)).toEqual(['::error title=no-skills::No Agent Skills found.']);
+
+        const root = await makeProject({
+          'skillarium.config.ts': "export default { skills: ['skills', 'missing'] };\n",
+          skills: { pdf: { 'SKILL.md': skillMd('pdf') } },
+        });
+        const checked = await cli(['check', '--root', root], { GITHUB_ACTIONS: 'true', GITHUB_WORKSPACE: root });
+        expect(commands(checked.stdout)).toEqual([expect.stringMatching(/^::warning title=root-not-found::/)]);
+      });
+
+      it('does not let a file name start a workflow command', async () => {
+        const root = await makeProject({
+          skills: { pdf: { 'SKILL.md': skillMd('pdf'), scripts: { 'a\n::error::pwned,50%.py': '' } } },
+        });
+        const checked = await cli(['check', '--root', root], { GITHUB_ACTIONS: 'true', GITHUB_WORKSPACE: root });
+        expect(commands(checked.stdout)).toEqual([
+          '::warning file=skills/pdf/scripts/a%0A%3A%3Aerror%3A%3Apwned%2C50%25.py,title=orphan-file::' +
+            '`scripts/a%0A::error::pwned,50%25.py` is never referenced from SKILL.md or the files it leads to, so an agent will not find it.',
+        ]);
+      });
+    });
+
+    it('prints a diagnostic on one line when a file name contains a line break', async () => {
+      const root = await makeProject({ skills: { pdf: { 'SKILL.md': skillMd('pdf'), scripts: { 'a\n::error::pwned.py': '' } } } });
+      const checked = await cli(['check', '--root', root]);
+      expect(checked.stdout).toContain('warn  skills/pdf `scripts/a\\n::error::pwned.py` is never referenced');
+      expect(checked.stdout.split('\n').some((line) => line.startsWith('::'))).toBe(false);
+      for (const args of [['list'], ['inspect', 'pdf'], ['build', '--out-dir', path.join(root, 'out')]]) {
+        const out = await cli([...args, '--root', root]);
+        expect(`${out.stdout}\n${out.stderr}`.split('\n').some((line) => line.startsWith('::'))).toBe(false);
+      }
     });
   });
 });

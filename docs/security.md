@@ -36,6 +36,8 @@ Instructions found inside a skill (“ignore previous instructions”, “run th
 - Pages carry a Content Security Policy (`script-src 'self'`, `connect-src 'self'`, `object-src 'none'`, …) as defence in depth, as an HTTP header in `dev` and a `<meta>` tag in static builds.
 - Skill names and descriptions written into generated HTML (`<title>`, meta description) are escaped.
 
+**Skill content cannot issue workflow commands.** In GitHub Actions, a line of output that starts with `::` is a command to the runner. The annotations `check` prints there carry file names and messages taken from skills, so `%`, carriage returns and line feeds are encoded in them, and `:` and `,` as well in file names and titles. A file name that contains a line break can therefore not start a command of its own. For the same reason every diagnostic and every file name is printed on one line on the command line: a line break inside a message or a path is shown as `\n`.
+
 **Bounded resource use.** `SKILL.md` larger than 1 MB is not loaded; text files over 512 KB and images over 5 MB are listed but not published; at most 500 files are indexed per skill; directory depth is capped; YAML alias expansion is limited.
 
 **The development server is local.** It binds to `127.0.0.1`, accepts only `GET` and `HEAD`, and rejects requests whose `Host` header is not a loopback name, which blocks DNS-rebinding attacks from web pages. Binding to another address with `--host` is an explicit choice and prints a warning.
