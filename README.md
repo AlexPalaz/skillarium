@@ -22,7 +22,7 @@
   <a href="docs/security.md">Security</a>
 </p>
 
-Skillarium is to Agent Skills what Storybook is to UI components: point it at a project and it turns the `SKILL.md` files and their supporting scripts, references and assets into a searchable, browsable site — locally while you work, or as a static website you can publish.
+Point Skillarium at a project and it turns the `SKILL.md` files and their supporting scripts, references and assets into a searchable, browsable site — locally while you work, or as a static website you can publish.
 
 ```bash
 npx skillarium dev      # explore your skills in the browser
