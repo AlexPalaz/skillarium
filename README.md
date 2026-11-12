@@ -15,7 +15,6 @@
 
 <p align="center">
   <a href="#usage">Usage</a> ·
-  <a href="#where-it-is-going">Roadmap</a> ·
   <a href="docs/configuration.md">Configuration</a> ·
   <a href="docs/deployment.md">Deployment</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
@@ -47,19 +46,7 @@ Skillarium reads those folders and gives you:
 - **Diagnostics** — what will not work, and what probably will not: frontmatter that breaks the [Agent Skills specification](https://agentskills.io/specification), links to files that do not exist, paths that are named but missing, files the agent can never reach, and copies of a skill that have drifted apart. Broken skills are still shown, so you can fix them. Every check is listed in [docs/diagnostics.md](docs/diagnostics.md).
 - **A static site** — the same viewer as plain files you can host anywhere.
 
-Everything above is read-only: Skillarium never modifies your skills and never executes anything inside them.
-
-## Where it is going
-
-Seeing a skill is not the same as knowing it works. The two questions people ask about a skill are *will the agent pick it up?* and *does it still work after I changed it?*, and neither can be answered by reading files.
-
-So the next part of Skillarium is a **test bench for skills**: a place to try a skill against real requests, see whether the agent activates it, and keep those tries as tests that run again on every change.
-
-It is built one feature at a time, and nothing is listed here until it works. What is already decided:
-
-- **It uses the agent you already have.** Skillarium has no model of its own and never asks for an API key.
-- **Running is always asked for.** `dev`, `build`, `preview`, `list`, `inspect` and `check` stay read-only; a skill is run only by a command whose purpose is to run it.
-- **A published site never runs anything.** The static build stays plain files.
+It is read-only: Skillarium never modifies your skills and never executes anything inside them.
 
 ## Usage
 
@@ -207,9 +194,7 @@ Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Please rea
 
 ## Scope
 
-Today Skillarium explores, documents and checks skills. Testing them is [where it is going](#where-it-is-going).
-
-It does not install or sync skills, act as a marketplace, bring its own model or API keys, or require a hosted service.
+Skillarium explores and documents skills. It does not install or sync them, or require a hosted service.
 
 ## License
 

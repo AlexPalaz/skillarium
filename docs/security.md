@@ -44,17 +44,6 @@ Instructions found inside a skill (“ignore previous instructions”, “run th
 
 These properties are covered by automated tests (`packages/core/test`, `packages/cli/test`, `e2e/dev-server.spec.ts`).
 
-## What is planned
-
-Skillarium is growing a test bench that tries a skill by running it through
-the agent installed on your machine (see the
-[README](../README.md#where-it-is-going)). Running a skill means trusting it,
-which none of the commands above require. The guarantees on this page will
-keep holding for `dev`, `build`, `preview`, `list`, `inspect` and `check`;
-testing will be a separate command that runs only when you start it, never as
-part of the others and never on a published site. This page will describe its
-own risks when it exists.
-
 ## Limitations
 
 Know these before publishing a site:
