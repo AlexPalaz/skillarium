@@ -57,6 +57,23 @@ jobs:
           path: test-results/
           retention-days: 7
 
+  skills:
+    name: Skills
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # Skillarium checks the skills of its own repository (.claude/skills),
+      # with the CLI built from this commit. A project would run
+      # `npx skillarium check` instead. Problems show as annotations.
+      - run: node packages/cli/bin/skillarium.js check --fail-on warning
+
   package:
     name: Package
     runs-on: ubuntu-latest
