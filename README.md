@@ -194,7 +194,7 @@ Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Please rea
 
 ## Scope
 
-Skillarium explores and documents skills. It deliberately does not run skills or agents, evaluate skills, install or sync them, call an LLM, or require a hosted service.
+Skillarium explores and documents skills. It does not install or sync them, or require a hosted service.
 
 ## License
 
